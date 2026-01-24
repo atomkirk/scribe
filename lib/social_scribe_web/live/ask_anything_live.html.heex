@@ -98,7 +98,7 @@
             <div class="flex justify-end">
               <div class="bg-[#F1F4F5] rounded-[8px] px-4 py-3 max-w-[85%]">
                 <p class="text-sm text-gray-900">
-                  <%= render_message_with_mentions(message.content) %>
+                  <%= render_message_with_mentions(message.content, Map.get(message, :mentioned_contacts, %{})) %>
                 </p>
               </div>
             </div>
@@ -151,21 +151,25 @@
           </div>
 
           <%!-- Message Input with Inline @ Mention --%>
-          <form phx-submit="send_message" class="space-y-3">
+          <form phx-submit="send_message" class="space-y-3" id="message-form">
             <div class="relative">
-              <input
-                type="text"
-                name="message"
+              <%!-- Hidden input to carry message value for form submission --%>
+              <input type="hidden" name="message" id="message-value" value={@input_value} />
+              <%!-- Contenteditable div for rich mention chips --%>
+              <div
+                contenteditable={if @loading, do: "false", else: "true"}
                 id="message-input"
-                value={@input_value}
                 phx-hook="MentionInput"
                 phx-keydown="keydown"
-                phx-change="update_input"
-                placeholder="Ask anything... type @ to mention a contact"
-                class="w-full border-0 p-0 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 bg-transparent"
-                autocomplete="off"
-                disabled={@loading}
-              />
+                phx-update="ignore"
+                role="textbox"
+                aria-placeholder="Ask anything... type @ to mention a contact"
+                class={[
+                  "w-full min-h-[20px] text-sm text-gray-900 focus:outline-none bg-transparent",
+                  "empty:before:content-[attr(aria-placeholder)] empty:before:text-gray-400",
+                  @loading && "opacity-50 cursor-not-allowed"
+                ]}
+              ></div>
 
               <%!-- Inline @ Mention Dropdown --%>
               <%= if @mention_active do %>

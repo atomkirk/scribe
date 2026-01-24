@@ -45,7 +45,8 @@ defmodule SocialScribeWeb.AskAnythingLiveTest do
       # Click back to Chat tab
       view |> element("button", "Chat") |> render_click()
 
-      assert has_element?(view, "input[placeholder*='Ask anything']")
+      # Check for contenteditable message input (uses aria-placeholder)
+      assert has_element?(view, "div#message-input[aria-placeholder*='Ask anything']")
     end
 
     test "has message input field", %{conn: conn} do
@@ -211,10 +212,10 @@ defmodule SocialScribeWeb.AskAnythingLiveTest do
     test "input has MentionInput hook and correct placeholder", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/dashboard/ask")
 
-      # Check input has the hook
-      assert has_element?(view, "input#message-input[phx-hook='MentionInput']")
+      # Check contenteditable div has the hook
+      assert has_element?(view, "div#message-input[phx-hook='MentionInput']")
 
-      # Check placeholder mentions @ for tagging
+      # Check placeholder mentions @ for tagging (via aria-placeholder)
       html = render(view)
       assert html =~ "type @ to mention a contact"
     end

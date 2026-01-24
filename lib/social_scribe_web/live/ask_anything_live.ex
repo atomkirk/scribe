@@ -132,6 +132,7 @@ defmodule SocialScribeWeb.AskAnythingLive do
           |> assign(:input_value, "")
           |> assign(:loading, true)
           |> assign(:mentioned_contacts, %{})
+          |> push_event("clear_input", %{})
 
         # Send the question asynchronously with the correct CRM provider
         send(self(), {:ask_question, conversation, message, contact_id, crm_provider})
@@ -311,7 +312,10 @@ defmodule SocialScribeWeb.AskAnythingLive do
       # Push event to JS hook to insert the mention inline in the text
       |> push_event("insert_mention", %{
         contact_name: contact.display_name,
-        contact_id: contact.id
+        contact_id: contact.id,
+        photo_url: contact.photo_url,
+        firstname: contact.firstname,
+        lastname: contact.lastname
       })
 
     {:noreply, socket}
@@ -418,8 +422,11 @@ defmodule SocialScribeWeb.AskAnythingLive do
   @doc """
   Renders message content with @mentions styled as pills.
   Returns a list of safe HTML parts that can be rendered in the template.
+  Accepts optional mentioned_contacts map to display contact photos.
   """
-  def render_message_with_mentions(content) when is_binary(content) do
+  def render_message_with_mentions(content, mentioned_contacts \\ %{})
+
+  def render_message_with_mentions(content, mentioned_contacts) when is_binary(content) do
     # Split the content by @mentions and render each part
     parts = Regex.split(~r/(@\w+(?:\s+\w+)?)/, content, include_captures: true)
 
@@ -429,11 +436,14 @@ defmodule SocialScribeWeb.AskAnythingLive do
         # This is a mention - render as styled pill
         mention_name = String.trim_leading(part, "@")
         escaped_name = Phoenix.HTML.html_escape(mention_name) |> Phoenix.HTML.safe_to_string()
+
+        # Try to find contact to get photo
+        contact = find_contact_by_name(mention_name, mentioned_contacts || %{})
+        avatar_html = render_mention_avatar(contact, mention_name)
+
         Phoenix.HTML.raw("""
-        <span class="inline-flex items-center bg-blue-50 text-blue-700 rounded-full px-2 py-0.5 text-sm font-medium border border-blue-100">
-          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
-          </svg>
+        <span class="inline-flex items-center bg-white text-gray-900 rounded-full px-2 py-0.5 text-sm font-medium border border-gray-200">
+          #{avatar_html}
           #{escaped_name}
         </span>
         """)
@@ -444,7 +454,43 @@ defmodule SocialScribeWeb.AskAnythingLive do
     end)
   end
 
-  def render_message_with_mentions(_), do: ""
+  def render_message_with_mentions(_, _), do: ""
+
+  # Renders the avatar for a mention - photo if available, initials otherwise
+  defp render_mention_avatar(nil, name) do
+    # No contact found - show initials
+    initials = get_initials(name)
+    """
+    <span class="w-4 h-4 rounded-full bg-[#C6CCD1] flex items-center justify-center text-[8px] font-semibold text-[#0C1216] mr-1.5 flex-shrink-0">#{initials}</span>
+    """
+  end
+
+  defp render_mention_avatar(contact, name) do
+    photo_url = Map.get(contact, :photo_url) || contact[:photo_url]
+
+    if photo_url do
+      # Show photo with onerror fallback to initials
+      initials = get_initials(name)
+      """
+      <img src="#{Phoenix.HTML.html_escape(photo_url) |> Phoenix.HTML.safe_to_string()}" class="w-4 h-4 rounded-full mr-1.5 flex-shrink-0 object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><span class="w-4 h-4 rounded-full bg-[#C6CCD1] items-center justify-center text-[8px] font-semibold text-[#0C1216] mr-1.5 flex-shrink-0 hidden">#{initials}</span>
+      """
+    else
+      # No photo - show initials
+      initials = get_initials(name)
+      """
+      <span class="w-4 h-4 rounded-full bg-[#C6CCD1] flex items-center justify-center text-[8px] font-semibold text-[#0C1216] mr-1.5 flex-shrink-0">#{initials}</span>
+      """
+    end
+  end
+
+  defp get_initials(name) do
+    name
+    |> String.split(~r/\s+/)
+    |> Enum.take(2)
+    |> Enum.map(&String.first/1)
+    |> Enum.join()
+    |> String.upcase()
+  end
 
   @doc """
   Renders markdown content as HTML.
