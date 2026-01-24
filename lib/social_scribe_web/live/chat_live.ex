@@ -29,8 +29,10 @@ defmodule SocialScribeWeb.ChatLive do
         |> assign(:show_search_modal, false)
         |> assign(:search_query, "")
         |> assign(:searching, false)
+        |> assign(:recent_meetings, [])
         |> load_credentials()
         |> load_chat_history()
+        |> load_recent_meetings()
 
       {:ok, socket, layout: {SocialScribeWeb.Layouts, :dashboard}}
     else
@@ -179,7 +181,7 @@ defmodule SocialScribeWeb.ChatLive do
       |> assign(:active_chat_id, chat.id)
 
     # Generate AI response with selected contacts context
-    case generate_answer(content, provider, credential, socket.assigns.selected_contacts) do
+    case generate_answer(content, provider, credential, socket.assigns.selected_contacts, socket.assigns.recent_meetings) do
       {:ok, answer} ->
         {:ok, ai_message} = ContactChats.add_message(chat, "assistant", answer)
 
@@ -274,8 +276,13 @@ defmodule SocialScribeWeb.ChatLive do
     assign(socket, :chat_history, chats)
   end
 
-  defp generate_answer(question, provider, credential, selected_contacts) do
-    case ContactQuestionAnswerer.answer_question(question, provider, credential, selected_contacts) do
+  defp load_recent_meetings(socket) do
+    meetings = Meetings.get_user_recent_meetings_with_transcripts(socket.assigns.current_user.id, 3)
+    assign(socket, :recent_meetings, meetings)
+  end
+
+  defp generate_answer(question, provider, credential, selected_contacts, recent_meetings) do
+    case ContactQuestionAnswerer.answer_question(question, provider, credential, selected_contacts, recent_meetings) do
       {:ok, answer} -> {:ok, answer}
       {:error, reason} -> {:error, reason}
     end

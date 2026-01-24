@@ -13,17 +13,18 @@ defmodule SocialScribe.ContactChats.ContactQuestionAnswerer do
   The function:
   1. Uses provided selected_contacts if available, otherwise searches the CRM
   2. Fetches detailed information if needed
-  3. Uses Gemini to generate a natural language response
+  3. Includes recent meeting transcripts if provided
+  4. Uses Gemini to generate a natural language response
 
   Returns {:ok, answer} or {:error, reason}
   """
-  def answer_question(question, provider, credential, selected_contacts \\ []) when is_binary(question) and provider in ["hubspot", "salesforce"] do
+  def answer_question(question, provider, credential, selected_contacts \\ [], recent_meetings \\ []) when is_binary(question) and provider in ["hubspot", "salesforce"] do
     if credential == nil do
       {:error, :no_credential}
     else
-      case get_relevant_context(question, provider, credential, selected_contacts) do
-        {:ok, context} ->
-          generate_answer(question, context, provider)
+      case get_relevant_context(question, provider, credential, selected_contacts, recent_meetings) do
+        {:ok, contact_context, meeting_context} ->
+          generate_answer(question, contact_context, meeting_context, provider)
 
         {:error, reason} ->
           {:error, reason}
@@ -34,8 +35,8 @@ defmodule SocialScribe.ContactChats.ContactQuestionAnswerer do
   @doc """
   Builds a prompt for Gemini and generates a response.
   """
-  defp generate_answer(question, context, provider) do
-    prompt = build_prompt(question, context, provider)
+  defp generate_answer(question, contact_context, meeting_context, provider) do
+    prompt = build_prompt(question, contact_context, meeting_context, provider)
 
     case AIContentGeneratorApi.generate_contact_chat_response(prompt) do
       {:ok, response} ->
@@ -51,27 +52,32 @@ defmodule SocialScribe.ContactChats.ContactQuestionAnswerer do
 
   If selected_contacts are provided, uses those directly.
   Otherwise, parses the question to extract contact names and searches.
+  Also formats any recent meeting transcripts.
   """
-  defp get_relevant_context(question, provider, credential, selected_contacts) when is_list(selected_contacts) and length(selected_contacts) > 0 do
-    # Use the selected contacts directly
-    {:ok, format_contacts_for_context(selected_contacts, provider)}
+  defp get_relevant_context(question, provider, credential, selected_contacts, recent_meetings) when is_list(selected_contacts) and length(selected_contacts) > 0 do
+    contact_context = format_contacts_for_context(selected_contacts, provider)
+    meeting_context = format_meetings_for_context(recent_meetings)
+    {:ok, contact_context, meeting_context}
   end
 
-  defp get_relevant_context(question, provider, credential, _selected_contacts) do
-    case extract_search_terms(question) do
-      {:ok, search_term} ->
-        case search_contacts(provider, credential, search_term) do
-          {:ok, contacts} ->
-            {:ok, format_contacts_for_context(contacts, provider)}
+  defp get_relevant_context(question, provider, credential, _selected_contacts, recent_meetings) do
+    contact_context =
+      case extract_search_terms(question) do
+        {:ok, search_term} ->
+          case search_contacts(provider, credential, search_term) do
+            {:ok, contacts} ->
+              format_contacts_for_context(contacts, provider)
 
-          {:error, reason} ->
-            {:error, reason}
-        end
+            {:error, _reason} ->
+              ""
+          end
 
-      :no_search_term ->
-        # Return empty context - AI will handle generic questions
-        {:ok, []}
-    end
+        :no_search_term ->
+          ""
+      end
+
+    meeting_context = format_meetings_for_context(recent_meetings)
+    {:ok, contact_context, meeting_context}
   end
 
   @doc """
@@ -145,22 +151,94 @@ defmodule SocialScribe.ContactChats.ContactQuestionAnswerer do
   defp format_single_contact(_), do: ""
 
   @doc """
-  Builds a prompt for the AI to answer the question using the contact context.
+  Formats meeting transcripts for use in the AI prompt.
   """
-  defp build_prompt(question, context, provider) do
-    context_text = if is_list(context) && Enum.empty?(context) do
-      ""
-    else
-      "\n\nHere is relevant contact information from #{provider}:\n#{context}"
-    end
+  defp format_meetings_for_context(meetings) when is_list(meetings) do
+    meetings
+    |> Enum.map(&format_single_meeting/1)
+    |> Enum.join("\n\n")
+  end
+
+  defp format_meetings_for_context(_), do: ""
+
+  @doc """
+  Formats a single meeting with transcript into readable text.
+  """
+  defp format_single_meeting(meeting) when is_map(meeting) do
+    transcript_text =
+      if is_map(meeting.meeting_transcript) && is_map(meeting.meeting_transcript.content) do
+        content = meeting.meeting_transcript.content
+
+        # Extract text from the data array structure
+        case content["data"] do
+          data when is_list(data) ->
+            # Collect all words from all participants
+            words_text =
+              data
+              |> Enum.map(fn participant ->
+                case participant["words"] do
+                  words when is_list(words) ->
+                    words
+                    |> Enum.map(&Map.get(&1, "text", ""))
+                    |> Enum.join(" ")
+                  _ -> ""
+                end
+              end)
+              |> Enum.filter(&(String.trim(&1) != ""))
+              |> Enum.join(" ")
+
+            if String.length(String.trim(words_text)) > 0 do
+              String.slice(words_text, 0..800)
+            else
+              "No transcript content"
+            end
+          _ -> "No transcript content"
+        end
+      else
+        "No transcript available"
+      end
 
     """
-    You are a helpful assistant that answers questions about CRM contacts.
+    Meeting: #{meeting.title || "Untitled"}
+    Date: #{format_meeting_date(meeting.recorded_at)}
+    Transcript: #{transcript_text}
+    """
+  end
+
+  defp format_single_meeting(_), do: ""
+
+  defp format_meeting_date(datetime) when is_struct(datetime, DateTime) do
+    datetime |> Calendar.strftime("%Y-%m-%d %H:%M:%S")
+  end
+
+  defp format_meeting_date(_), do: "N/A"
+
+  @doc """
+  Builds a prompt for the AI to answer the question using the contact and meeting context.
+  """
+  defp build_prompt(question, contact_context, meeting_context, provider) do
+    contact_text =
+      if contact_context != "" do
+        "\n\nHere is relevant contact information from #{provider}:\n#{contact_context}"
+      else
+        ""
+      end
+
+    meeting_text =
+      if meeting_context != "" do
+        "\n\nHere are recent meeting transcripts:\n#{meeting_context}"
+      else
+        ""
+      end
+
+    """
+    You are a helpful assistant that answers questions about CRM contacts and meetings.
 
     User question: #{question}
-    #{context_text}
+    #{contact_text}
+    #{meeting_text}
 
-    Please answer the user's question based on the contact information provided.
+    Please answer the user's question based on the contact information and meeting transcripts provided.
     Be concise and natural in your response. If you don't have enough information to answer,
     say so and suggest how to get more information.
     """

@@ -134,6 +134,22 @@ defmodule SocialScribe.Meetings do
   end
 
   @doc """
+  Gets the most recent meetings with transcripts for a user.
+  Limit defaults to 3 meetings.
+  """
+  def get_user_recent_meetings_with_transcripts(user_id, limit \\ 3) do
+    from(m in Meeting,
+      join: ce in assoc(m, :calendar_event),
+      join: mt in assoc(m, :meeting_transcript),
+      where: ce.user_id == ^user_id and not is_nil(mt.id),
+      order_by: [desc: m.recorded_at],
+      limit: ^limit,
+      preload: [:meeting_transcript]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Gets a meeting with its details preloaded.
 
   ## Examples
