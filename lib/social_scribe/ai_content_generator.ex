@@ -154,6 +154,70 @@ defmodule SocialScribe.AIContentGenerator do
     end
   end
 
+  @impl SocialScribe.AIContentGeneratorApi
+  def answer_crm_question(question, contact_data, crm_provider) do
+    prompt = build_crm_question_prompt(question, contact_data, crm_provider)
+    call_gemini(prompt)
+  end
+
+  defp build_crm_question_prompt(question, nil, _crm_provider) do
+    """
+    You are a helpful assistant that answers questions about CRM contacts and meetings.
+
+    The user is asking a question but has not selected a specific contact.
+    Please provide a helpful response and suggest that they can tag a contact using @ to get more specific information.
+
+    User's question: #{question}
+
+    Provide a helpful, concise response. If the question requires specific contact data, politely mention that tagging a contact with @ would help provide more accurate information.
+    """
+  end
+
+  defp build_crm_question_prompt(question, contact_data, crm_provider) do
+    contact_info = format_contact_for_prompt(contact_data, crm_provider)
+
+    """
+    You are a helpful assistant that answers questions about CRM contacts.
+
+    You have access to the following contact information from #{format_crm_name(crm_provider)}:
+
+    #{contact_info}
+
+    User's question: #{question}
+
+    Please provide a helpful, accurate, and concise response based on the contact data provided.
+    If the requested information is not available in the contact data, say so clearly.
+    Keep your response conversational and friendly.
+    """
+  end
+
+  defp format_contact_for_prompt(contact_data, _crm_provider) when is_map(contact_data) do
+    contact_data
+    |> Enum.filter(fn {_k, v} -> v != nil and v != "" end)
+    |> Enum.map(fn {k, v} -> "- #{format_field_name(k)}: #{v}" end)
+    |> Enum.join("\n")
+  end
+
+  defp format_contact_for_prompt(_, _), do: "No contact data available."
+
+  defp format_field_name(field) when is_atom(field) do
+    field
+    |> Atom.to_string()
+    |> format_field_name()
+  end
+
+  defp format_field_name(field) when is_binary(field) do
+    field
+    |> String.replace("_", " ")
+    |> String.split(" ")
+    |> Enum.map(&String.capitalize/1)
+    |> Enum.join(" ")
+  end
+
+  defp format_crm_name("hubspot"), do: "HubSpot"
+  defp format_crm_name("salesforce"), do: "Salesforce"
+  defp format_crm_name(_), do: "CRM"
+
   # Shared parsing logic for both HubSpot and Salesforce CRM suggestions
   defp parse_crm_suggestions(response) do
     # Clean up the response - remove markdown code blocks if present

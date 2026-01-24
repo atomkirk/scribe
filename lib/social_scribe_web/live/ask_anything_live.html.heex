@@ -1,0 +1,303 @@
+<div class="max-w-md mx-auto bg-white rounded-2xl shadow-lg overflow-hidden h-[calc(100vh-200px)] flex flex-col">
+  <%!-- Header --%>
+  <div class="px-5 pt-5 pb-3">
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-semibold text-gray-900">Ask Anything</h1>
+      <button type="button" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <%!-- Tabs --%>
+  <div class="px-5 pb-3">
+    <div class="flex items-center justify-between">
+      <div class="flex space-x-1">
+        <button
+          type="button"
+          phx-click="switch_tab"
+          phx-value-tab="chat"
+          class={[
+            "px-4 py-2 text-sm font-medium rounded-full transition-colors",
+            @active_tab == :chat && "bg-gray-100 text-gray-900",
+            @active_tab != :chat && "text-gray-500 hover:text-gray-700"
+          ]}
+        >
+          Chat
+        </button>
+        <button
+          type="button"
+          phx-click="switch_tab"
+          phx-value-tab="history"
+          class={[
+            "px-4 py-2 text-sm font-medium rounded-full transition-colors",
+            @active_tab == :history && "bg-gray-100 text-gray-900",
+            @active_tab != :history && "text-gray-500 hover:text-gray-700"
+          ]}
+        >
+          History
+        </button>
+      </div>
+      <button
+        type="button"
+        phx-click="new_chat"
+        class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <%!-- Content Area --%>
+  <div class="flex-1 overflow-hidden flex flex-col">
+    <%= if @active_tab == :chat do %>
+      <%!-- Chat Messages --%>
+      <div class="flex-1 overflow-y-auto px-5 py-3 space-y-4" id="chat-messages">
+        <%!-- Timestamp --%>
+        <div class="flex justify-center">
+          <span class="text-xs text-gray-400">
+            <%= format_timestamp(DateTime.utc_now()) %>
+          </span>
+        </div>
+
+        <%!-- Welcome Message --%>
+        <%= if Enum.empty?(@messages) do %>
+          <div class="text-gray-600 text-sm leading-relaxed">
+            <%= get_welcome_message() %>
+          </div>
+        <% end %>
+
+        <%!-- Messages --%>
+        <%= for message <- @messages do %>
+          <%= if message.role == "user" do %>
+            <%!-- User Message --%>
+            <div class="flex justify-end">
+              <div class="bg-gray-100 rounded-2xl rounded-tr-md px-4 py-3 max-w-[85%]">
+                <p class="text-sm text-gray-900">
+                  <%= if message.contact_name do %>
+                    <span class="inline-flex items-center">
+                      <span class="text-blue-600 font-medium">@<%= message.contact_name %></span>
+                    </span>
+                  <% end %>
+                  <%= message.content %>
+                </p>
+              </div>
+            </div>
+          <% else %>
+            <%!-- Assistant Message --%>
+            <div class="space-y-2">
+              <div class="text-sm text-gray-700 leading-relaxed">
+                <%= message.content %>
+              </div>
+              <%= if message.sources && Enum.any?(message.sources) do %>
+                <div class="flex items-center space-x-1">
+                  <span class="text-xs text-gray-500">Sources</span>
+                  <%= for source <- message.sources do %>
+                    <%= if source.provider == "hubspot" do %>
+                      <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+                    <% else %>
+                      <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                    <% end %>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        <% end %>
+
+        <%!-- Loading Indicator --%>
+        <%= if @loading do %>
+          <div class="flex items-center space-x-2 text-gray-400">
+            <div class="flex space-x-1">
+              <span class="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+              <span class="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+              <span class="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+            </div>
+            <span class="text-sm">Thinking...</span>
+          </div>
+        <% end %>
+      </div>
+
+      <%!-- Input Area --%>
+      <div class="border-t border-gray-100 p-4">
+        <%!-- Selected Contact Badge --%>
+        <%= if @selected_contact do %>
+          <div class="flex items-center mb-2">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-50 text-blue-700">
+              <span class="mr-1">@</span>
+              <%= @selected_contact.display_name %>
+              <button type="button" phx-click="clear_contact" class="ml-2 text-blue-400 hover:text-blue-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          </div>
+        <% end %>
+
+        <%!-- Contact Search Dropdown --%>
+        <div class="relative">
+          <div class="flex items-center space-x-2 mb-3">
+            <div class="relative">
+              <button
+                type="button"
+                phx-click={if @contact_dropdown_open, do: "close_contact_search", else: "open_contact_search"}
+                class="flex items-center space-x-1 px-3 py-1.5 rounded-full border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                <span class="text-gray-400">@</span>
+                <span>Add context</span>
+              </button>
+
+              <%!-- Contact Search Dropdown --%>
+              <%= if @contact_dropdown_open do %>
+                <div
+                  class="absolute bottom-full left-0 mb-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+                  phx-click-away="close_contact_search"
+                >
+                  <div class="p-3">
+                    <input
+                      type="text"
+                      placeholder="Search contacts..."
+                      value={@contact_search_query}
+                      phx-keyup="contact_search"
+                      phx-debounce="200"
+                      class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      autofocus
+                    />
+                  </div>
+
+                  <%= if @searching_contacts do %>
+                    <div class="px-3 py-2 text-sm text-gray-500">Searching...</div>
+                  <% end %>
+
+                  <%= if !@searching_contacts && @contact_search_query != "" && Enum.empty?(@contact_search_results) do %>
+                    <div class="px-3 py-2 text-sm text-gray-500">No contacts found</div>
+                  <% end %>
+
+                  <%= if Enum.any?(@contact_search_results) do %>
+                    <div class="max-h-48 overflow-y-auto border-t border-gray-100">
+                      <%= for contact <- @contact_search_results do %>
+                        <button
+                          type="button"
+                          phx-click="select_contact"
+                          phx-value-id={contact.id}
+                          class="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center space-x-3"
+                        >
+                          <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">
+                            <%= String.at(contact.firstname || "", 0) %><%= String.at(contact.lastname || "", 0) %>
+                          </div>
+                          <div class="flex-1 min-w-0">
+                            <div class="text-sm font-medium text-gray-900 truncate">
+                              <%= contact.firstname %> <%= contact.lastname %>
+                            </div>
+                            <div class="text-xs text-gray-500 truncate">
+                              <%= contact.email %>
+                            </div>
+                          </div>
+                        </button>
+                      <% end %>
+                    </div>
+                  <% end %>
+
+                  <%= if @crm_provider == nil do %>
+                    <div class="px-3 py-3 text-sm text-gray-500 border-t border-gray-100">
+                      Connect HubSpot or Salesforce to search contacts
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          </div>
+
+          <%!-- Message Input --%>
+          <form phx-submit="send_message" class="flex items-center space-x-2">
+            <div class="flex-1 relative">
+              <input
+                type="text"
+                name="message"
+                value={@input_value}
+                phx-keydown="keydown"
+                phx-change="update_input"
+                placeholder="Ask anything about your meetings"
+                class="w-full px-4 py-3 bg-gray-50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+                autocomplete="off"
+                disabled={@loading}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={@loading || @input_value == ""}
+              class="w-10 h-10 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+            </button>
+          </form>
+        </div>
+
+        <%!-- Sources Footer --%>
+        <div class="flex items-center justify-center space-x-2 mt-3">
+          <span class="text-xs text-gray-400">Sources</span>
+          <%= if @hubspot_credential do %>
+            <span class="w-3 h-3 rounded-full bg-orange-500" title="HubSpot"></span>
+          <% end %>
+          <%= if @salesforce_credential do %>
+            <span class="w-3 h-3 rounded-full bg-blue-500" title="Salesforce"></span>
+          <% end %>
+          <%= if !@hubspot_credential && !@salesforce_credential do %>
+            <span class="text-xs text-gray-400">No CRM connected</span>
+          <% end %>
+        </div>
+      </div>
+    <% else %>
+      <%!-- History Tab --%>
+      <div class="flex-1 overflow-y-auto px-5 py-3">
+        <%= if Enum.empty?(@conversations) do %>
+          <div class="text-center py-8">
+            <div class="text-gray-400 mb-2">
+              <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <p class="text-gray-500 text-sm">No conversations yet</p>
+            <p class="text-gray-400 text-xs mt-1">Start a new chat to begin</p>
+          </div>
+        <% else %>
+          <div class="space-y-2">
+            <%= for conversation <- @conversations do %>
+              <button
+                type="button"
+                phx-click="select_conversation"
+                phx-value-id={conversation.id}
+                class={[
+                  "w-full text-left px-4 py-3 rounded-xl transition-colors",
+                  @current_conversation && @current_conversation.id == conversation.id && "bg-blue-50 border border-blue-200",
+                  !(@current_conversation && @current_conversation.id == conversation.id) && "hover:bg-gray-50 border border-transparent"
+                ]}
+              >
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-medium text-gray-900 truncate flex-1">
+                    <%= conversation.title || "New conversation" %>
+                  </span>
+                  <span class="text-xs text-gray-400 ml-2">
+                    <%= Calendar.strftime(conversation.updated_at, "%b %d") %>
+                  </span>
+                </div>
+                <%= if Enum.any?(conversation.messages) do %>
+                  <p class="text-xs text-gray-500 mt-1 truncate">
+                    <%= List.last(conversation.messages).content |> String.slice(0, 50) %>...
+                  </p>
+                <% end %>
+              </button>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>
