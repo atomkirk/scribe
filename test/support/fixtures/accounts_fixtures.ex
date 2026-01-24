@@ -80,6 +80,28 @@ defmodule SocialScribe.AccountsFixtures do
   end
 
   @doc """
+  Generate a salesforce_credential.
+  """
+  def salesforce_credential_fixture(attrs \\ %{}) do
+    user_id = attrs[:user_id] || user_fixture().id
+
+    {:ok, credential} =
+      attrs
+      |> Enum.into(%{
+        user_id: user_id,
+        expires_at: DateTime.add(DateTime.utc_now(), 3600, :second),
+        provider: "salesforce",
+        refresh_token: "salesforce_refresh_token_#{System.unique_integer([:positive])}",
+        token: "salesforce_token_#{System.unique_integer([:positive])}",
+        uid: "https://test.salesforce.com",
+        email: "salesforce_user@example.com"
+      })
+      |> SocialScribe.Accounts.create_user_credential()
+
+    credential
+  end
+
+  @doc """
   Generate a facebook_page_credential.
   """
   def facebook_page_credential_fixture(attrs \\ %{}) do

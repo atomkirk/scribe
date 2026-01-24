@@ -551,6 +551,63 @@ defmodule SocialScribeWeb.ModalComponents do
   end
 
   @doc """
+  Renders a Salesforce-styled modal wrapper.
+
+  This is a specialized modal with Salesforce-specific styling:
+  - Custom overlay color
+  - Reduced padding
+  - No close button (relies on Cancel button in footer)
+
+  ## Examples
+
+      <.salesforce_modal id="salesforce-modal" show on_cancel={JS.patch(~p"/back")}>
+        Modal content here
+      </.salesforce_modal>
+  """
+  attr :id, :string, required: true
+  attr :show, :boolean, default: false
+  attr :on_cancel, JS, default: %JS{}
+  slot :inner_block, required: true
+
+  def salesforce_modal(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      phx-mounted={@show && show_modal(@id)}
+      phx-remove={hide_modal(@id)}
+      data-cancel={JS.exec(@on_cancel, "phx-remove")}
+      class="relative z-50 hidden"
+    >
+      <div id={"#{@id}-bg"} class="bg-slate-900/80 fixed inset-0 transition-opacity" aria-hidden="true" />
+      <div
+        class="fixed inset-0 overflow-y-auto"
+        aria-labelledby={"#{@id}-title"}
+        aria-describedby={"#{@id}-description"}
+        role="dialog"
+        aria-modal="true"
+        tabindex="0"
+      >
+        <div class="flex min-h-full items-center justify-center">
+          <div class="w-full max-w-3xl p-4 sm:p-6 lg:py-8">
+            <.focus_wrap
+              id={"#{@id}-container"}
+              phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
+              phx-key="escape"
+              phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
+              class="shadow-zinc-700/10 ring-zinc-700/10 relative hidden rounded-2xl bg-white px-10 py-7 shadow-lg ring-1 transition"
+            >
+              <div id={"#{@id}-content"}>
+                {render_slot(@inner_block)}
+              </div>
+            </.focus_wrap>
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a HubSpot-styled modal wrapper.
 
   This is a specialized modal with HubSpot-specific styling:

@@ -41,6 +41,10 @@ config :ueberauth, Ueberauth.Strategy.Hubspot.OAuth,
   client_id: System.get_env("HUBSPOT_CLIENT_ID"),
   client_secret: System.get_env("HUBSPOT_CLIENT_SECRET")
 
+config :ueberauth, Ueberauth.Strategy.Salesforce.OAuth,
+  client_id: System.get_env("SALESFORCE_CLIENT_ID"),
+  client_secret: System.get_env("SALESFORCE_CLIENT_SECRET")
+
 if System.get_env("PHX_SERVER") do
   config :social_scribe, SocialScribeWeb.Endpoint, server: true
 end
