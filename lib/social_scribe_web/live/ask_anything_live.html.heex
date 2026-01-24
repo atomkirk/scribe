@@ -9,7 +9,7 @@
 />
 
 <%!-- Right Side Panel Container (clips overflow to prevent scrollbar) --%>
-<div class="fixed top-0 right-0 h-full w-full max-w-md z-50 overflow-hidden pointer-events-none">
+<div class="fixed top-0 right-0 h-full w-full max-w-[400px] z-50 overflow-hidden pointer-events-none">
   <div
     class={[
       "h-full w-full bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-in-out pointer-events-auto",
@@ -18,19 +18,19 @@
     ]}
   >
   <%!-- Header --%>
-  <div class="px-5 pt-5 pb-3 border-b border-gray-100">
+  <div class="px-[30px] pt-5 pb-3">
     <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-semibold text-gray-900">Ask Anything</h1>
-      <button type="button" phx-click="toggle_panel" class="text-gray-400 hover:text-gray-600">
+      <h1 class="text-2xl text-[#131314]">Ask Anything</h1>
+      <button type="button" phx-click="toggle_panel" class="text-[#6B7179] hover:text-gray-600">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
         </svg>
       </button>
     </div>
   </div>
 
   <%!-- Tabs --%>
-  <div class="px-5 py-3">
+  <div class="px-[30px] py-3">
     <div class="flex items-center justify-between">
       <div class="flex space-x-1">
         <button
@@ -38,8 +38,8 @@
           phx-click="switch_tab"
           phx-value-tab="chat"
           class={[
-            "px-4 py-2 text-sm font-medium rounded-full transition-colors",
-            @active_tab == :chat && "bg-gray-100 text-gray-900",
+            "px-3 py-1 text-sm font-medium rounded-[8px] transition-colors",
+            @active_tab == :chat && "bg-[#F1F4F5] text-gray-900",
             @active_tab != :chat && "text-gray-500 hover:text-gray-700"
           ]}
         >
@@ -50,8 +50,8 @@
           phx-click="switch_tab"
           phx-value-tab="history"
           class={[
-            "px-4 py-2 text-sm font-medium rounded-full transition-colors",
-            @active_tab == :history && "bg-gray-100 text-gray-900",
+            "px-3 py-1 text-sm font-medium rounded-[8px] transition-colors",
+            @active_tab == :history && "bg-[#F1F4F5] text-gray-900",
             @active_tab != :history && "text-gray-500 hover:text-gray-700"
           ]}
         >
@@ -74,7 +74,7 @@
   <div class="flex-1 overflow-hidden flex flex-col">
     <%= if @active_tab == :chat do %>
       <%!-- Chat Messages --%>
-      <div class="flex-1 overflow-y-auto px-5 py-3 space-y-4" id="chat-messages">
+      <div class="flex-1 overflow-y-auto px-[30px] py-3 space-y-4" id="chat-messages">
         <%!-- Timestamp --%>
         <div class="flex items-center gap-3">
           <div class="flex-1 h-px bg-gray-200"></div>
@@ -96,7 +96,7 @@
           <%= if message.role == "user" do %>
             <%!-- User Message --%>
             <div class="flex justify-end">
-              <div class="bg-gray-100 rounded-2xl rounded-tr-md px-4 py-3 max-w-[85%]">
+              <div class="bg-[#F1F4F5] rounded-[8px] px-4 py-3 max-w-[85%]">
                 <p class="text-sm text-gray-900">
                   <%= render_message_with_mentions(message.content) %>
                 </p>
@@ -139,13 +139,15 @@
       </div>
 
       <%!-- Input Area --%>
-      <div class="p-4">
+      <div class="px-[30px] py-4">
         <%!-- Bordered Input Container --%>
-        <div class="border border-gray-200 rounded-2xl p-4 relative">
-          <%!-- Hint to use @ mention --%>
-          <div class="flex items-center mb-3 text-xs text-gray-400">
-            <span class="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-[10px] text-gray-500 mr-1.5">@</span>
-            <span>Type <kbd class="px-1 py-0.5 bg-gray-100 rounded text-gray-600 font-mono">@</kbd> to mention a contact</span>
+        <div class="border border-1 border-gray-200 focus-within:border-[#3270E8] rounded-2xl p-3 relative transition-colors">
+          <%!-- Add context button --%>
+          <div class="mb-3">
+            <button type="button" class="inline-flex items-center px-3 py-1 border border-[#D5DADD] rounded-[8px] text-sm text-[#6B7179] hover:bg-gray-50 transition-colors">
+              <span class="mr-1.5">@</span>
+              <span>Add context</span>
+            </button>
           </div>
 
           <%!-- Message Input with Inline @ Mention --%>
@@ -353,9 +355,9 @@
               <button
                 type="submit"
                 disabled={@loading || @input_value == ""}
-                class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                class="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#E5EAED] text-[#8A9299] hover:bg-gray-200 hover:text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
                 </svg>
               </button>
@@ -365,7 +367,7 @@
       </div>
     <% else %>
       <%!-- History Tab --%>
-      <div class="flex-1 overflow-y-auto px-5 py-3">
+      <div class="flex-1 overflow-y-auto px-[30px] py-3">
         <%= if Enum.empty?(@conversations) do %>
           <div class="text-center py-8">
             <div class="text-gray-400 mb-2">
