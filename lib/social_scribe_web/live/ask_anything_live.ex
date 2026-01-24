@@ -36,6 +36,7 @@ defmodule SocialScribeWeb.AskAnythingLive do
       |> assign(:contact_search_results, [])
       |> assign(:contact_dropdown_open, false)
       |> assign(:searching_contacts, false)
+      |> assign(:panel_open, true)
 
     {:ok, socket}
   end
@@ -191,6 +192,11 @@ defmodule SocialScribeWeb.AskAnythingLive do
   end
 
   @impl true
+  def handle_event("toggle_panel", _params, socket) do
+    {:noreply, assign(socket, :panel_open, !socket.assigns.panel_open)}
+  end
+
+  @impl true
   def handle_info({:ask_question, conversation, question, contact_id}, socket) do
     user = socket.assigns.current_user
 
@@ -256,6 +262,6 @@ defmodule SocialScribeWeb.AskAnythingLive do
   end
 
   defp get_welcome_message do
-    "I can answer questions about your CRM contacts and data - just ask!"
+    "I can answer questions about Jump meetings and data – just ask!"
   end
 end
