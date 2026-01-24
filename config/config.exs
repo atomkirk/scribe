@@ -99,7 +99,8 @@ config :ueberauth, Ueberauth,
       {Ueberauth.Strategy.Hubspot,
        [
          default_scope: "crm.objects.contacts.read crm.objects.contacts.write oauth"
-       ]}
+       ]},
+    salesforce: {Ueberauth.Strategy.Salesforce, [scopes: ["api", "refresh_token", "full", "web"]]}
   ]
 
 # Import environment specific config. This must remain at the bottom
