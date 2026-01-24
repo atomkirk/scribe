@@ -105,8 +105,8 @@
           <% else %>
             <%!-- Assistant Message --%>
             <div class="space-y-2">
-              <div class="text-sm text-gray-700 leading-relaxed">
-                <%= message.content %>
+              <div class="text-sm text-gray-700 prose-chat">
+                <%= render_markdown(message.content) %>
               </div>
               <%= if message.sources && Enum.any?(message.sources) do %>
                 <div class="flex items-center space-x-1.5">

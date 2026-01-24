@@ -445,4 +445,21 @@ defmodule SocialScribeWeb.AskAnythingLive do
   end
 
   def render_message_with_mentions(_), do: ""
+
+  @doc """
+  Renders markdown content as HTML.
+  Uses Earmark to parse markdown and returns safe HTML.
+  """
+  def render_markdown(content) when is_binary(content) do
+    case Earmark.as_html(content) do
+      {:ok, html, _warnings} ->
+        Phoenix.HTML.raw(html)
+
+      {:error, _html, _errors} ->
+        # Fallback to plain text if parsing fails
+        Phoenix.HTML.html_escape(content)
+    end
+  end
+
+  def render_markdown(_), do: ""
 end
