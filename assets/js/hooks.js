@@ -20,10 +20,14 @@ Hooks.MentionInput = {
         this.mentionActive = false
         this.mentionRange = null // Store the range where @ was typed
         
+        // Initialize submit button state
+        this.updateSubmitButtonState()
+        
         // Handle input events to detect @ mentions
         this.el.addEventListener("input", (e) => {
             this.handleInput(e)
             this.updateHiddenInput()
+            this.updateSubmitButtonState()
         })
         
         // Handle keydown for navigation
@@ -71,7 +75,13 @@ Hooks.MentionInput = {
         this.handleEvent("clear_input", () => {
             this.el.innerHTML = ""
             this.updateHiddenInput()
+            this.updateSubmitButtonState()
         })
+    },
+    
+    updated() {
+        // Re-sync button state when LiveView updates (e.g., loading state changes)
+        this.updateSubmitButtonState()
     },
     
     // Get initials from firstname and lastname
@@ -301,6 +311,24 @@ Hooks.MentionInput = {
         }
     },
     
+    // Update submit button disabled state based on input content
+    updateSubmitButtonState() {
+        const form = this.el.closest("form")
+        if (!form) return
+        
+        const submitBtn = form.querySelector('button[type="submit"]')
+        if (!submitBtn) return
+        
+        const message = this.extractMessage()
+        const isLoading = submitBtn.dataset.loading === "true"
+        
+        if (message.length > 0 && !isLoading) {
+            submitBtn.disabled = false
+        } else {
+            submitBtn.disabled = true
+        }
+    },
+    
     handleKeydown(e) {
         // Handle Enter for form submission when mention is not active
         if (e.key === "Enter" && !e.shiftKey && !this.mentionActive) {
@@ -347,6 +375,38 @@ Hooks.MentionInput = {
                 this.pushEvent("mention_select_current", {})
                 break
         }
+    }
+}
+
+Hooks.LocalTime = {
+    mounted() {
+        this.updateTime()
+    },
+    updated() {
+        this.updateTime()
+    },
+    updateTime() {
+        const utcTime = this.el.dataset.utc
+        if (!utcTime) return
+        
+        const date = new Date(utcTime)
+        
+        // Format as "HH:MMam/pm - Month DD, YYYY"
+        const options = {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        }
+        const timeStr = date.toLocaleTimeString('en-US', options).toLowerCase()
+        
+        const dateOptions = {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+        }
+        const dateStr = date.toLocaleDateString('en-US', dateOptions)
+        
+        this.el.textContent = `${timeStr} - ${dateStr}`
     }
 }
 

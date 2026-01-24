@@ -78,7 +78,12 @@
         <%!-- Timestamp --%>
         <div class="flex items-center gap-3">
           <div class="flex-1 h-px bg-gray-200"></div>
-          <span class="text-xs text-gray-400 whitespace-nowrap">
+          <span 
+            id="chat-timestamp" 
+            phx-hook="LocalTime" 
+            data-utc={DateTime.to_iso8601(DateTime.utc_now())}
+            class="text-xs text-gray-400 whitespace-nowrap"
+          >
             <%= format_timestamp(DateTime.utc_now()) %>
           </span>
           <div class="flex-1 h-px bg-gray-200"></div>
@@ -113,7 +118,7 @@
                   <span class="text-xs text-gray-500">Sources</span>
                   <span>🎙️</span>
                   <%= for source <- message.sources do %>
-                    <%= if source.provider == "hubspot" do %>
+                    <%= if source["provider"] == "hubspot" do %>
                       <span class="w-2 h-2 rounded-full bg-orange-500"></span>
                     <% else %>
                       <span class="w-2 h-2 rounded-full bg-blue-500"></span>
@@ -371,7 +376,9 @@
               </div>
               <button
                 type="submit"
-                disabled={@loading || @input_value == ""}
+                disabled={@loading}
+                data-loading={to_string(@loading)}
+                id="submit-btn"
                 class="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#E5EAED] text-[#8A9299] hover:bg-gray-200 hover:text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
