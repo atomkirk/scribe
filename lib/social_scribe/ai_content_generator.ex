@@ -227,6 +227,11 @@ defmodule SocialScribe.AIContentGenerator do
     end
   end
 
+  @impl SocialScribe.AIContentGeneratorApi
+  def generate_contact_chat_response(prompt) when is_binary(prompt) do
+    call_gemini(prompt)
+  end
+
   defp call_gemini(prompt_text) do
     api_key = Application.get_env(:social_scribe, :gemini_api_key)
 
