@@ -259,11 +259,11 @@ defmodule SocialScribeWeb.AskAnythingLiveTest do
     test "mention_navigate changes selected index", %{conn: conn} do
       import Mox
 
-      # Mock the HubSpot API to return contacts with crm_provider
+      # Mock the HubSpot API to return contacts with crm_provider and photo_url
       expect(SocialScribe.HubspotApiMock, :search_contacts, fn _cred, _query ->
         {:ok, [
-          %{id: "1", firstname: "John", lastname: "Doe", email: "john@example.com", display_name: "John Doe", crm_provider: "hubspot"},
-          %{id: "2", firstname: "Jane", lastname: "Smith", email: "jane@example.com", display_name: "Jane Smith", crm_provider: "hubspot"}
+          %{id: "1", firstname: "John", lastname: "Doe", email: "john@example.com", display_name: "John Doe", crm_provider: "hubspot", photo_url: nil},
+          %{id: "2", firstname: "Jane", lastname: "Smith", email: "jane@example.com", display_name: "Jane Smith", crm_provider: "hubspot", photo_url: nil}
         ]}
       end)
 
@@ -288,10 +288,10 @@ defmodule SocialScribeWeb.AskAnythingLiveTest do
     test "select_mention_contact closes dropdown and tracks contact", %{conn: conn} do
       import Mox
 
-      # Mock the HubSpot API to return contacts with crm_provider
+      # Mock the HubSpot API to return contacts with crm_provider and photo_url
       expect(SocialScribe.HubspotApiMock, :search_contacts, fn _cred, _query ->
         {:ok, [
-          %{id: "contact-123", firstname: "John", lastname: "Doe", email: "john@example.com", display_name: "John Doe", crm_provider: "hubspot"}
+          %{id: "contact-123", firstname: "John", lastname: "Doe", email: "john@example.com", display_name: "John Doe", crm_provider: "hubspot", photo_url: nil}
         ]}
       end)
 
@@ -318,10 +318,10 @@ defmodule SocialScribeWeb.AskAnythingLiveTest do
     test "mention_select_current closes dropdown for highlighted contact", %{conn: conn} do
       import Mox
 
-      # Mock the HubSpot API to return contacts with crm_provider
+      # Mock the HubSpot API to return contacts with crm_provider and photo_url
       expect(SocialScribe.HubspotApiMock, :search_contacts, fn _cred, _query ->
         {:ok, [
-          %{id: "contact-456", firstname: "Alice", lastname: "Wonder", email: "alice@example.com", display_name: "Alice Wonder", crm_provider: "hubspot"}
+          %{id: "contact-456", firstname: "Alice", lastname: "Wonder", email: "alice@example.com", display_name: "Alice Wonder", crm_provider: "hubspot", photo_url: nil}
         ]}
       end)
 
@@ -357,10 +357,10 @@ defmodule SocialScribeWeb.AskAnythingLiveTest do
     test "shows keyboard navigation hints", %{conn: conn} do
       import Mox
 
-      # Mock the HubSpot API to return contacts with crm_provider
+      # Mock the HubSpot API to return contacts with crm_provider and photo_url
       expect(SocialScribe.HubspotApiMock, :search_contacts, fn _cred, _query ->
         {:ok, [
-          %{id: "1", firstname: "Test", lastname: "User", email: "test@example.com", display_name: "Test User", crm_provider: "hubspot"}
+          %{id: "1", firstname: "Test", lastname: "User", email: "test@example.com", display_name: "Test User", crm_provider: "hubspot", photo_url: nil}
         ]}
       end)
 
@@ -381,10 +381,10 @@ defmodule SocialScribeWeb.AskAnythingLiveTest do
     test "shows CRM provider badge for contacts", %{conn: conn} do
       import Mox
 
-      # Mock the HubSpot API to return contacts with crm_provider
+      # Mock the HubSpot API to return contacts with crm_provider and photo_url
       expect(SocialScribe.HubspotApiMock, :search_contacts, fn _cred, _query ->
         {:ok, [
-          %{id: "1", firstname: "Test", lastname: "User", email: "test@example.com", display_name: "Test User", crm_provider: "hubspot"}
+          %{id: "1", firstname: "Test", lastname: "User", email: "test@example.com", display_name: "Test User", crm_provider: "hubspot", photo_url: nil}
         ]}
       end)
 
@@ -421,16 +421,16 @@ defmodule SocialScribeWeb.AskAnythingLiveTest do
     test "searches both CRMs and shows contacts from both", %{conn: conn} do
       import Mox
 
-      # Mock both HubSpot and Salesforce to return contacts
+      # Mock both HubSpot and Salesforce to return contacts with photo_url
       expect(SocialScribe.HubspotApiMock, :search_contacts, fn _cred, _query ->
         {:ok, [
-          %{id: "h1", firstname: "HubSpot", lastname: "Contact", email: "hubspot@example.com", display_name: "HubSpot Contact", crm_provider: "hubspot"}
+          %{id: "h1", firstname: "HubSpot", lastname: "Contact", email: "hubspot@example.com", display_name: "HubSpot Contact", crm_provider: "hubspot", photo_url: nil}
         ]}
       end)
 
       expect(SocialScribe.SalesforceApiMock, :search_contacts, fn _cred, _query ->
         {:ok, [
-          %{id: "s1", firstname: "Salesforce", lastname: "Contact", email: "salesforce@example.com", display_name: "Salesforce Contact", crm_provider: "salesforce"}
+          %{id: "s1", firstname: "Salesforce", lastname: "Contact", email: "salesforce@example.com", display_name: "Salesforce Contact", crm_provider: "salesforce", photo_url: nil}
         ]}
       end)
 

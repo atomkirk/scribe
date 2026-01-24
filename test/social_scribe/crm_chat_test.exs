@@ -281,11 +281,11 @@ defmodule SocialScribe.CRMChatTest do
       user = user_fixture()
       _hubspot_cred = hubspot_credential_fixture(%{user_id: user.id})
 
-      # Mock HubSpot search
+      # Mock HubSpot search with photo_url
       expect(SocialScribe.HubspotApiMock, :search_contacts, fn _cred, "john" ->
         {:ok, [
           %{id: "h1", firstname: "John", lastname: "Doe", email: "john@hubspot.com",
-            display_name: "John Doe", crm_provider: "hubspot"}
+            display_name: "John Doe", crm_provider: "hubspot", photo_url: nil}
         ]}
       end)
 
@@ -298,11 +298,11 @@ defmodule SocialScribe.CRMChatTest do
       user = user_fixture()
       _salesforce_cred = salesforce_credential_fixture(%{user_id: user.id})
 
-      # Mock Salesforce search
+      # Mock Salesforce search with photo_url
       expect(SocialScribe.SalesforceApiMock, :search_contacts, fn _cred, "jane" ->
         {:ok, [
           %{id: "s1", firstname: "Jane", lastname: "Smith", email: "jane@salesforce.com",
-            display_name: "Jane Smith", crm_provider: "salesforce"}
+            display_name: "Jane Smith", crm_provider: "salesforce", photo_url: nil}
         ]}
       end)
 
@@ -316,18 +316,18 @@ defmodule SocialScribe.CRMChatTest do
       _hubspot_cred = hubspot_credential_fixture(%{user_id: user.id})
       _salesforce_cred = salesforce_credential_fixture(%{user_id: user.id})
 
-      # Mock both CRM searches
+      # Mock both CRM searches with photo_url
       expect(SocialScribe.HubspotApiMock, :search_contacts, fn _cred, "test" ->
         {:ok, [
           %{id: "h1", firstname: "Test", lastname: "HubSpot", email: "test@hubspot.com",
-            display_name: "Test HubSpot", crm_provider: "hubspot"}
+            display_name: "Test HubSpot", crm_provider: "hubspot", photo_url: nil}
         ]}
       end)
 
       expect(SocialScribe.SalesforceApiMock, :search_contacts, fn _cred, "test" ->
         {:ok, [
           %{id: "s1", firstname: "Test", lastname: "Salesforce", email: "test@salesforce.com",
-            display_name: "Test Salesforce", crm_provider: "salesforce"}
+            display_name: "Test Salesforce", crm_provider: "salesforce", photo_url: nil}
         ]}
       end)
 
@@ -344,11 +344,11 @@ defmodule SocialScribe.CRMChatTest do
       _hubspot_cred = hubspot_credential_fixture(%{user_id: user.id})
       _salesforce_cred = salesforce_credential_fixture(%{user_id: user.id})
 
-      # HubSpot returns results
+      # HubSpot returns results with photo_url
       expect(SocialScribe.HubspotApiMock, :search_contacts, fn _cred, "test" ->
         {:ok, [
           %{id: "h1", firstname: "Test", lastname: "User", email: "test@hubspot.com",
-            display_name: "Test User", crm_provider: "hubspot"}
+            display_name: "Test User", crm_provider: "hubspot", photo_url: nil}
         ]}
       end)
 

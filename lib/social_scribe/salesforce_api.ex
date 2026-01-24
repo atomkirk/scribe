@@ -26,7 +26,8 @@ defmodule SocialScribe.SalesforceApi do
     "MailingCity",
     "MailingState",
     "MailingPostalCode",
-    "MailingCountry"
+    "MailingCountry",
+    "PhotoUrl"
   ]
 
   defp client(access_token) do
@@ -68,7 +69,7 @@ defmodule SocialScribe.SalesforceApi do
 
       case Tesla.get(client(cred.token), url) do
         {:ok, %Tesla.Env{status: 200, body: body}} ->
-          contacts = parse_query_results(body)
+          contacts = parse_query_results(body, instance_url)
           {:ok, contacts}
 
         {:ok, %Tesla.Env{status: status, body: body}} ->
@@ -93,7 +94,7 @@ defmodule SocialScribe.SalesforceApi do
 
       case Tesla.get(client(cred.token), url) do
         {:ok, %Tesla.Env{status: 200, body: body}} ->
-          {:ok, format_contact(body)}
+          {:ok, format_contact(body, instance_url)}
 
         {:ok, %Tesla.Env{status: 404, body: _body}} ->
           {:error, :not_found}
@@ -181,16 +182,16 @@ defmodule SocialScribe.SalesforceApi do
   end
 
   # Parse SOQL query results
-  defp parse_query_results(%{"records" => records}) when is_list(records) do
+  defp parse_query_results(%{"records" => records}, instance_url) when is_list(records) do
     records
-    |> Enum.map(&format_contact/1)
+    |> Enum.map(&format_contact(&1, instance_url))
     |> Enum.reject(&is_nil/1)
   end
 
-  defp parse_query_results(_), do: []
+  defp parse_query_results(_, _instance_url), do: []
 
   # Format a Salesforce contact response into a cleaner structure
-  defp format_contact(%{"Id" => id} = contact) do
+  defp format_contact(%{"Id" => id} = contact, instance_url) do
     %{
       id: id,
       firstname: contact["FirstName"],
@@ -206,11 +207,19 @@ defmodule SocialScribe.SalesforceApi do
       zip: contact["MailingPostalCode"],
       country: contact["MailingCountry"],
       display_name: format_display_name(contact),
+      photo_url: build_photo_url(contact["PhotoUrl"], instance_url),
       crm_provider: "salesforce"
     }
   end
 
-  defp format_contact(_), do: nil
+  defp format_contact(_, _instance_url), do: nil
+
+  # Build full photo URL from relative path
+  defp build_photo_url(nil, _instance_url), do: nil
+  defp build_photo_url("", _instance_url), do: nil
+  defp build_photo_url(relative_path, instance_url) do
+    instance_url <> relative_path
+  end
 
   defp format_display_name(contact) do
     firstname = contact["FirstName"] || ""
