@@ -103,16 +103,17 @@ defmodule SocialScribe.CRMChat do
 
   @doc """
   Fetches contact data from the appropriate CRM.
+  Includes additional context like notes and tasks when available.
   """
   def fetch_contact_data(nil, _contact_id, _provider), do: {:ok, nil}
   def fetch_contact_data(_credential, nil, _provider), do: {:ok, nil}
 
   def fetch_contact_data(%UserCredential{} = credential, contact_id, "hubspot") do
-    HubspotApi.get_contact(credential, contact_id)
+    HubspotApi.get_contact_with_context(credential, contact_id)
   end
 
   def fetch_contact_data(%UserCredential{} = credential, contact_id, "salesforce") do
-    SalesforceApi.get_contact(credential, contact_id)
+    SalesforceApi.get_contact_with_context(credential, contact_id)
   end
 
   def fetch_contact_data(_credential, _contact_id, _provider), do: {:ok, nil}

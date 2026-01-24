@@ -177,6 +177,56 @@ defmodule SocialScribe.CRMChatTest do
 
       assert {:ok, nil} = CRMChat.fetch_contact_data(cred, nil, "hubspot")
     end
+
+    test "fetches hubspot contact with context" do
+      user = user_fixture()
+      cred = hubspot_credential_fixture(%{user_id: user.id})
+
+      expect(SocialScribe.HubspotApiMock, :get_contact_with_context, fn _cred, contact_id ->
+        assert contact_id == "123"
+        {:ok, %{
+          id: "123",
+          firstname: "John",
+          lastname: "Doe",
+          email: "john@example.com",
+          display_name: "John Doe",
+          crm_provider: "hubspot",
+          notes: [%{id: "n1", body: "Test note", created_at: nil}],
+          tasks: [%{id: "t1", subject: "Follow up", status: "Open", due_date: nil}]
+        }}
+      end)
+
+      assert {:ok, contact} = CRMChat.fetch_contact_data(cred, "123", "hubspot")
+      assert contact.id == "123"
+      assert contact.firstname == "John"
+      assert length(contact.notes) == 1
+      assert length(contact.tasks) == 1
+    end
+
+    test "fetches salesforce contact with context" do
+      user = user_fixture()
+      cred = salesforce_credential_fixture(%{user_id: user.id})
+
+      expect(SocialScribe.SalesforceApiMock, :get_contact_with_context, fn _cred, contact_id ->
+        assert contact_id == "456"
+        {:ok, %{
+          id: "456",
+          firstname: "Jane",
+          lastname: "Smith",
+          email: "jane@example.com",
+          display_name: "Jane Smith",
+          crm_provider: "salesforce",
+          notes: [],
+          tasks: [%{id: "t1", subject: "Send proposal", status: "Completed", due_date: nil}]
+        }}
+      end)
+
+      assert {:ok, contact} = CRMChat.fetch_contact_data(cred, "456", "salesforce")
+      assert contact.id == "456"
+      assert contact.firstname == "Jane"
+      assert contact.notes == []
+      assert length(contact.tasks) == 1
+    end
   end
 
   describe "ask_question/5 with mocks" do

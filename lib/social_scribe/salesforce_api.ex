@@ -162,6 +162,108 @@ defmodule SocialScribe.SalesforceApi do
     end
   end
 
+  @doc """
+  Gets notes associated with a contact.
+  In Salesforce, notes are stored as Tasks with descriptions or as ContentNote objects.
+  We query Tasks that have descriptions as a simple approach.
+  Returns up to 10 most recent notes.
+  """
+  @impl true
+  def get_contact_notes(%UserCredential{} = credential, contact_id) do
+    with_token_refresh(credential, fn cred ->
+      instance_url = get_instance_url(cred)
+      escaped_id = escape_soql_query(contact_id)
+
+      # Query Tasks that have descriptions (commonly used for notes in Salesforce)
+      # Also include ContentNote-style records if they exist
+      soql_query =
+        "SELECT Id, Subject, Description, ActivityDate, CreatedDate " <>
+          "FROM Task " <>
+          "WHERE WhoId = '#{escaped_id}' " <>
+          "AND Description != null " <>
+          "ORDER BY CreatedDate DESC " <>
+          "LIMIT 10"
+
+      encoded_query = URI.encode(soql_query)
+      url = "#{instance_url}/services/data/#{@api_version}/query?q=#{encoded_query}"
+
+      case Tesla.get(client(cred.token), url) do
+        {:ok, %Tesla.Env{status: 200, body: %{"records" => records}}} ->
+          notes = Enum.map(records, &format_note/1)
+          {:ok, notes}
+
+        {:ok, %Tesla.Env{status: 200, body: _}} ->
+          {:ok, []}
+
+        {:ok, %Tesla.Env{status: status, body: body}} ->
+          {:error, {:api_error, status, body}}
+
+        {:error, reason} ->
+          {:error, {:http_error, reason}}
+      end
+    end)
+  end
+
+  @doc """
+  Gets recent tasks/activities associated with a contact.
+  Returns up to 5 most recent tasks ordered by activity date.
+  """
+  @impl true
+  def get_contact_tasks(%UserCredential{} = credential, contact_id) do
+    with_token_refresh(credential, fn cred ->
+      instance_url = get_instance_url(cred)
+      escaped_id = escape_soql_query(contact_id)
+
+      soql_query =
+        "SELECT Id, Subject, Description, Status, Priority, ActivityDate, CreatedDate " <>
+          "FROM Task " <>
+          "WHERE WhoId = '#{escaped_id}' " <>
+          "ORDER BY ActivityDate DESC NULLS LAST " <>
+          "LIMIT 5"
+
+      encoded_query = URI.encode(soql_query)
+      url = "#{instance_url}/services/data/#{@api_version}/query?q=#{encoded_query}"
+
+      case Tesla.get(client(cred.token), url) do
+        {:ok, %Tesla.Env{status: 200, body: %{"records" => records}}} ->
+          tasks = Enum.map(records, &format_task/1)
+          {:ok, tasks}
+
+        {:ok, %Tesla.Env{status: 200, body: _}} ->
+          {:ok, []}
+
+        {:ok, %Tesla.Env{status: status, body: body}} ->
+          {:error, {:api_error, status, body}}
+
+        {:error, reason} ->
+          {:error, {:http_error, reason}}
+      end
+    end)
+  end
+
+  @doc """
+  Gets a contact with additional context including notes and tasks.
+  If notes or tasks fail to fetch, returns the contact with empty arrays.
+  """
+  @impl true
+  def get_contact_with_context(%UserCredential{} = credential, contact_id) do
+    with {:ok, contact} <- get_contact(credential, contact_id) do
+      notes =
+        case get_contact_notes(credential, contact_id) do
+          {:ok, n} -> n
+          {:error, _} -> []
+        end
+
+      tasks =
+        case get_contact_tasks(credential, contact_id) do
+          {:ok, t} -> t
+          {:error, _} -> []
+        end
+
+      {:ok, Map.merge(contact, %{notes: notes, tasks: tasks})}
+    end
+  end
+
   # Get the instance URL from the credential
   # The instance URL is stored in the uid field during OAuth
   defp get_instance_url(%UserCredential{} = credential) do
@@ -213,6 +315,46 @@ defmodule SocialScribe.SalesforceApi do
   end
 
   defp format_contact(_, _instance_url), do: nil
+
+  # Format a Salesforce task record used as a note
+  defp format_note(%{"Id" => id} = record) do
+    %{
+      id: id,
+      subject: record["Subject"],
+      body: record["Description"],
+      created_at: parse_datetime(record["CreatedDate"]),
+      activity_date: record["ActivityDate"]
+    }
+  end
+
+  defp format_note(_), do: nil
+
+  # Format a Salesforce task record
+  defp format_task(%{"Id" => id} = record) do
+    %{
+      id: id,
+      subject: record["Subject"],
+      description: record["Description"],
+      status: record["Status"],
+      priority: record["Priority"],
+      due_date: record["ActivityDate"],
+      created_at: parse_datetime(record["CreatedDate"])
+    }
+  end
+
+  defp format_task(_), do: nil
+
+  # Parse ISO datetime string to DateTime
+  defp parse_datetime(nil), do: nil
+
+  defp parse_datetime(datetime_string) when is_binary(datetime_string) do
+    case DateTime.from_iso8601(datetime_string) do
+      {:ok, datetime, _offset} -> datetime
+      _ -> datetime_string
+    end
+  end
+
+  defp parse_datetime(other), do: other
 
   # Build full photo URL from relative path
   defp build_photo_url(nil, _instance_url), do: nil

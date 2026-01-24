@@ -192,13 +192,86 @@ defmodule SocialScribe.AIContentGenerator do
   end
 
   defp format_contact_for_prompt(contact_data, _crm_provider) when is_map(contact_data) do
-    contact_data
-    |> Enum.filter(fn {_k, v} -> v != nil and v != "" end)
-    |> Enum.map(fn {k, v} -> "- #{format_field_name(k)}: #{v}" end)
+    # Separate notes and tasks from basic contact fields
+    {notes, rest} = Map.pop(contact_data, :notes, [])
+    {tasks, basic_fields} = Map.pop(rest, :tasks, [])
+
+    # Format basic contact information
+    basic_info =
+      basic_fields
+      |> Enum.filter(fn {_k, v} -> v != nil and v != "" and not is_list(v) end)
+      |> Enum.map(fn {k, v} -> "- #{format_field_name(k)}: #{v}" end)
+      |> Enum.join("\n")
+
+    # Format notes section
+    notes_section = format_notes_for_prompt(notes)
+
+    # Format tasks section
+    tasks_section = format_tasks_for_prompt(tasks)
+
+    # Combine all sections
+    [
+      "## Contact Information",
+      basic_info,
+      "",
+      "## Recent Notes",
+      notes_section,
+      "",
+      "## Recent Tasks/Activities",
+      tasks_section
+    ]
     |> Enum.join("\n")
   end
 
   defp format_contact_for_prompt(_, _), do: "No contact data available."
+
+  defp format_notes_for_prompt([]), do: "No notes available."
+
+  defp format_notes_for_prompt(notes) when is_list(notes) do
+    notes
+    |> Enum.with_index(1)
+    |> Enum.map(fn {note, idx} ->
+      body = note[:body] || note[:description] || "No content"
+      date = format_date(note[:created_at] || note[:activity_date])
+      subject = if note[:subject], do: " - #{note[:subject]}", else: ""
+      "#{idx}. [#{date}]#{subject}: #{truncate_text(body, 200)}"
+    end)
+    |> Enum.join("\n")
+  end
+
+  defp format_notes_for_prompt(_), do: "No notes available."
+
+  defp format_tasks_for_prompt([]), do: "No tasks available."
+
+  defp format_tasks_for_prompt(tasks) when is_list(tasks) do
+    tasks
+    |> Enum.with_index(1)
+    |> Enum.map(fn {task, idx} ->
+      subject = task[:subject] || "Untitled task"
+      status = task[:status] || "Unknown"
+      due_date = format_date(task[:due_date])
+      "#{idx}. #{subject} (Status: #{status}, Due: #{due_date})"
+    end)
+    |> Enum.join("\n")
+  end
+
+  defp format_tasks_for_prompt(_), do: "No tasks available."
+
+  defp format_date(nil), do: "N/A"
+  defp format_date(%DateTime{} = dt), do: Calendar.strftime(dt, "%Y-%m-%d")
+  defp format_date(%Date{} = d), do: Calendar.strftime(d, "%Y-%m-%d")
+  defp format_date(date) when is_binary(date), do: date
+  defp format_date(_), do: "N/A"
+
+  defp truncate_text(nil, _max), do: ""
+  defp truncate_text(text, max) when is_binary(text) do
+    if String.length(text) > max do
+      String.slice(text, 0, max) <> "..."
+    else
+      text
+    end
+  end
+  defp truncate_text(_, _), do: ""
 
   defp format_field_name(field) when is_atom(field) do
     field
