@@ -41,7 +41,7 @@ defmodule SocialScribe.SalesforceApi do
   end
 
   @doc """
-  Searches for contacts by query string using SOSL.
+  Searches for contacts by query string using SOQL.
   Returns up to 10 matching contacts with basic properties.
   Automatically refreshes token on 401/expired errors and retries once.
   """
@@ -49,17 +49,26 @@ defmodule SocialScribe.SalesforceApi do
   def search_contacts(%UserCredential{} = credential, query) when is_binary(query) do
     with_token_refresh(credential, fn cred ->
       instance_url = get_instance_url(cred)
-      # Escape special SOSL characters
-      escaped_query = escape_sosl_query(query)
+      # Escape special SOQL characters
+      escaped_query = escape_soql_query(query)
 
       fields = Enum.join(@contact_fields, ", ")
-      sosl_query = "FIND {#{escaped_query}} IN ALL FIELDS RETURNING Contact(#{fields}) LIMIT 10"
-      encoded_query = URI.encode(sosl_query)
-      url = "#{instance_url}/services/data/#{@api_version}/search?q=#{encoded_query}"
+
+      # Use SOQL for reliable database query instead of SOSL search index
+      soql_query =
+        "SELECT #{fields} FROM Contact " <>
+          "WHERE FirstName LIKE '%#{escaped_query}%' " <>
+          "OR LastName LIKE '%#{escaped_query}%' " <>
+          "OR Email LIKE '%#{escaped_query}%' " <>
+          "OR Name LIKE '%#{escaped_query}%' " <>
+          "LIMIT 10"
+
+      encoded_query = URI.encode(soql_query)
+      url = "#{instance_url}/services/data/#{@api_version}/query?q=#{encoded_query}"
 
       case Tesla.get(client(cred.token), url) do
         {:ok, %Tesla.Env{status: 200, body: body}} ->
-          contacts = parse_search_results(body)
+          contacts = parse_query_results(body)
           {:ok, contacts}
 
         {:ok, %Tesla.Env{status: status, body: body}} ->
@@ -171,12 +180,14 @@ defmodule SocialScribe.SalesforceApi do
     end
   end
 
-  # Parse SOSL search results
-  defp parse_search_results(%{"searchRecords" => records}) when is_list(records) do
-    Enum.map(records, &format_contact/1)
+  # Parse SOQL query results
+  defp parse_query_results(%{"records" => records}) when is_list(records) do
+    records
+    |> Enum.map(&format_contact/1)
+    |> Enum.reject(&is_nil/1)
   end
 
-  defp parse_search_results(_), do: []
+  defp parse_query_results(_), do: []
 
   # Format a Salesforce contact response into a cleaner structure
   defp format_contact(%{"Id" => id} = contact) do
@@ -194,7 +205,8 @@ defmodule SocialScribe.SalesforceApi do
       state: contact["MailingState"],
       zip: contact["MailingPostalCode"],
       country: contact["MailingCountry"],
-      display_name: format_display_name(contact)
+      display_name: format_display_name(contact),
+      crm_provider: "salesforce"
     }
   end
 
@@ -237,28 +249,12 @@ defmodule SocialScribe.SalesforceApi do
     end)
   end
 
-  # Escape special characters in SOSL queries
-  defp escape_sosl_query(query) do
+  # Escape special characters in SOQL queries
+  # SOQL only requires escaping single quotes and backslashes
+  defp escape_soql_query(query) do
     query
     |> String.replace("\\", "\\\\")
     |> String.replace("'", "\\'")
-    |> String.replace("\"", "\\\"")
-    |> String.replace("?", "\\?")
-    |> String.replace("&", "\\&")
-    |> String.replace("|", "\\|")
-    |> String.replace("!", "\\!")
-    |> String.replace("{", "\\{")
-    |> String.replace("}", "\\}")
-    |> String.replace("[", "\\[")
-    |> String.replace("]", "\\]")
-    |> String.replace("(", "\\(")
-    |> String.replace(")", "\\)")
-    |> String.replace("^", "\\^")
-    |> String.replace("~", "\\~")
-    |> String.replace("*", "\\*")
-    |> String.replace(":", "\\:")
-    |> String.replace("+", "\\+")
-    |> String.replace("-", "\\-")
   end
 
   # Wrapper that handles token refresh on auth errors

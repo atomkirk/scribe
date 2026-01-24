@@ -132,6 +132,70 @@ defmodule SocialScribe.CRMChat do
   end
 
   @doc """
+  Searches for contacts across all connected CRMs in parallel.
+  Returns a merged list of contacts from all CRMs, each tagged with their crm_provider.
+  Limits to max 4 CRMs for performance.
+  """
+  def search_all_crms(user, query) do
+    credentials = get_all_crm_credentials(user)
+
+    if Enum.empty?(credentials) do
+      {:ok, []}
+    else
+      # Limit to max 4 CRMs and search in parallel
+      contacts =
+        credentials
+        |> Enum.take(4)
+        |> Task.async_stream(
+          fn {provider, cred} -> search_single_crm(provider, cred, query) end,
+          timeout: 10_000,
+          on_timeout: :kill_task
+        )
+        |> Enum.flat_map(fn
+          {:ok, {:ok, contacts}} -> contacts
+          {:ok, {:error, _}} -> []
+          {:exit, _} -> []
+        end)
+
+      {:ok, contacts}
+    end
+  end
+
+  @doc """
+  Gets all connected CRM credentials for a user.
+  Returns a list of {provider, credential} tuples.
+  """
+  def get_all_crm_credentials(user) do
+    hubspot = Accounts.get_user_hubspot_credential(user.id)
+    salesforce = Accounts.get_user_salesforce_credential(user.id)
+
+    [{"hubspot", hubspot}, {"salesforce", salesforce}]
+    |> Enum.reject(fn {_, cred} -> is_nil(cred) end)
+  end
+
+  @doc """
+  Gets all connected CRM providers for a user.
+  Returns a list of provider names (e.g., ["hubspot", "salesforce"]).
+  """
+  def get_all_connected_crms(user) do
+    get_all_crm_credentials(user)
+    |> Enum.map(fn {provider, _cred} -> provider end)
+  end
+
+  # Search a single CRM for contacts
+  defp search_single_crm("hubspot", credential, query) do
+    HubspotApi.search_contacts(credential, query)
+  end
+
+  defp search_single_crm("salesforce", credential, query) do
+    SalesforceApi.search_contacts(credential, query)
+  end
+
+  defp search_single_crm(_provider, _credential, _query) do
+    {:ok, []}
+  end
+
+  @doc """
   Gets the connected CRM provider for a user.
   Returns {provider_name, credential} or {nil, nil} if no CRM is connected.
   """

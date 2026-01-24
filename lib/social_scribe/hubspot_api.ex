@@ -160,7 +160,8 @@ defmodule SocialScribe.HubspotApi do
       website: properties["website"],
       linkedin_url: properties["hs_linkedin_url"],
       twitter_handle: properties["twitterhandle"],
-      display_name: format_display_name(properties)
+      display_name: format_display_name(properties),
+      crm_provider: "hubspot"
     }
   end
 

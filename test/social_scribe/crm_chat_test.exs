@@ -207,4 +207,160 @@ defmodule SocialScribe.CRMChatTest do
       assert assistant_msg.content =~ "CRM"
     end
   end
+
+  describe "get_all_crm_credentials/1" do
+    test "returns empty list when no CRM is connected" do
+      user = user_fixture()
+
+      credentials = CRMChat.get_all_crm_credentials(user)
+      assert credentials == []
+    end
+
+    test "returns hubspot credential when only hubspot is connected" do
+      user = user_fixture()
+      _hubspot_cred = hubspot_credential_fixture(%{user_id: user.id})
+
+      credentials = CRMChat.get_all_crm_credentials(user)
+      assert length(credentials) == 1
+      assert [{"hubspot", cred}] = credentials
+      assert cred.provider == "hubspot"
+    end
+
+    test "returns salesforce credential when only salesforce is connected" do
+      user = user_fixture()
+      _salesforce_cred = salesforce_credential_fixture(%{user_id: user.id})
+
+      credentials = CRMChat.get_all_crm_credentials(user)
+      assert length(credentials) == 1
+      assert [{"salesforce", cred}] = credentials
+      assert cred.provider == "salesforce"
+    end
+
+    test "returns both credentials when both CRMs are connected" do
+      user = user_fixture()
+      _hubspot_cred = hubspot_credential_fixture(%{user_id: user.id})
+      _salesforce_cred = salesforce_credential_fixture(%{user_id: user.id})
+
+      credentials = CRMChat.get_all_crm_credentials(user)
+      assert length(credentials) == 2
+
+      providers = Enum.map(credentials, fn {provider, _} -> provider end)
+      assert "hubspot" in providers
+      assert "salesforce" in providers
+    end
+  end
+
+  describe "get_all_connected_crms/1" do
+    test "returns empty list when no CRM is connected" do
+      user = user_fixture()
+
+      crms = CRMChat.get_all_connected_crms(user)
+      assert crms == []
+    end
+
+    test "returns list of provider names when CRMs are connected" do
+      user = user_fixture()
+      _hubspot_cred = hubspot_credential_fixture(%{user_id: user.id})
+      _salesforce_cred = salesforce_credential_fixture(%{user_id: user.id})
+
+      crms = CRMChat.get_all_connected_crms(user)
+      assert length(crms) == 2
+      assert "hubspot" in crms
+      assert "salesforce" in crms
+    end
+  end
+
+  describe "search_all_crms/2" do
+    test "returns empty list when no CRM is connected" do
+      user = user_fixture()
+
+      assert {:ok, []} = CRMChat.search_all_crms(user, "john")
+    end
+
+    test "searches only hubspot when only hubspot is connected" do
+      user = user_fixture()
+      _hubspot_cred = hubspot_credential_fixture(%{user_id: user.id})
+
+      # Mock HubSpot search
+      expect(SocialScribe.HubspotApiMock, :search_contacts, fn _cred, "john" ->
+        {:ok, [
+          %{id: "h1", firstname: "John", lastname: "Doe", email: "john@hubspot.com",
+            display_name: "John Doe", crm_provider: "hubspot"}
+        ]}
+      end)
+
+      assert {:ok, contacts} = CRMChat.search_all_crms(user, "john")
+      assert length(contacts) == 1
+      assert hd(contacts).crm_provider == "hubspot"
+    end
+
+    test "searches only salesforce when only salesforce is connected" do
+      user = user_fixture()
+      _salesforce_cred = salesforce_credential_fixture(%{user_id: user.id})
+
+      # Mock Salesforce search
+      expect(SocialScribe.SalesforceApiMock, :search_contacts, fn _cred, "jane" ->
+        {:ok, [
+          %{id: "s1", firstname: "Jane", lastname: "Smith", email: "jane@salesforce.com",
+            display_name: "Jane Smith", crm_provider: "salesforce"}
+        ]}
+      end)
+
+      assert {:ok, contacts} = CRMChat.search_all_crms(user, "jane")
+      assert length(contacts) == 1
+      assert hd(contacts).crm_provider == "salesforce"
+    end
+
+    test "searches both CRMs in parallel and merges results" do
+      user = user_fixture()
+      _hubspot_cred = hubspot_credential_fixture(%{user_id: user.id})
+      _salesforce_cred = salesforce_credential_fixture(%{user_id: user.id})
+
+      # Mock both CRM searches
+      expect(SocialScribe.HubspotApiMock, :search_contacts, fn _cred, "test" ->
+        {:ok, [
+          %{id: "h1", firstname: "Test", lastname: "HubSpot", email: "test@hubspot.com",
+            display_name: "Test HubSpot", crm_provider: "hubspot"}
+        ]}
+      end)
+
+      expect(SocialScribe.SalesforceApiMock, :search_contacts, fn _cred, "test" ->
+        {:ok, [
+          %{id: "s1", firstname: "Test", lastname: "Salesforce", email: "test@salesforce.com",
+            display_name: "Test Salesforce", crm_provider: "salesforce"}
+        ]}
+      end)
+
+      assert {:ok, contacts} = CRMChat.search_all_crms(user, "test")
+      assert length(contacts) == 2
+
+      providers = Enum.map(contacts, & &1.crm_provider)
+      assert "hubspot" in providers
+      assert "salesforce" in providers
+    end
+
+    test "gracefully handles errors from one CRM" do
+      user = user_fixture()
+      _hubspot_cred = hubspot_credential_fixture(%{user_id: user.id})
+      _salesforce_cred = salesforce_credential_fixture(%{user_id: user.id})
+
+      # HubSpot returns results
+      expect(SocialScribe.HubspotApiMock, :search_contacts, fn _cred, "test" ->
+        {:ok, [
+          %{id: "h1", firstname: "Test", lastname: "User", email: "test@hubspot.com",
+            display_name: "Test User", crm_provider: "hubspot"}
+        ]}
+      end)
+
+      # Salesforce returns an error
+      expect(SocialScribe.SalesforceApiMock, :search_contacts, fn _cred, "test" ->
+        {:error, {:api_error, 500, "Internal Server Error"}}
+      end)
+
+      # Should still return HubSpot results
+      assert {:ok, contacts} = CRMChat.search_all_crms(user, "test")
+      assert length(contacts) == 1
+      assert hd(contacts).crm_provider == "hubspot"
+    end
+  end
 end
