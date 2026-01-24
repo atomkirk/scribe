@@ -54,6 +54,7 @@ defmodule SocialScribeWeb.ChatLive do
       socket
       |> assign(:active_chat_id, chat_id)
       |> assign(:messages, messages)
+      |> assign(:active_tab, "chat")
 
     {:noreply, socket}
   end
@@ -341,4 +342,11 @@ defmodule SocialScribeWeb.ChatLive do
         |> Calendar.strftime("%b %d")
     end
   end
+
+  defp format_chat_date(datetime) when is_struct(datetime, DateTime) do
+    datetime
+    |> Calendar.strftime("%A, %B %d, %Y at %I:%M %p")
+  end
+
+  defp format_chat_date(_), do: "Today"
 end
