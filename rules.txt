@@ -1,0 +1,49 @@
+### Existing functionality
+
+- Allow logging in with Google (Already built)
+    - Create a Google OAuth app and use the credentials it creates for the .env file
+    - add [webshookeng@gmail.com](mailto:webshookeng@gmail.com) as an oauth test user to your Google OAuth app
+    - I can connect multiple google accounts and it pulls in the events from all of their calendars ✅
+    - I should be able to see the upcoming calendar events in the app and toggle a switch on whether or not I want a notetaker to attend that meeting ✅
+- The app uses [recall.ai](http://recall.ai) to send a notetaker to the meetings on my calendar
+    - Create a free account on Recall.ai, https://www.recall.ai/ to get an API key in the .env file
+    - https://docs.recall.ai/docs/quickstart
+    - When I connect my calendar or add an event to my calendar, the app should look for a zoom link somewhere in the calendar event and then make sure a recall bot joins the meeting a configurable (in settings) number of minutes before it starts ✅
+- After the meeting, the meeting appears in the app in a list of past meetings
+    - Each meeting should show attendees, start time, a logo for platform of the call (zoom, Microsoft teams, google meet) ✅
+- I can click on past meetings and:
+    - View the full transcript of the meeting
+    - View an AI-generated draft follow-up email (recaps what was talked about in the meeting) ✅
+- Suggested updates to Hubspot already works ✅
+
+### New feature to add
+
+- In settings, allow me to connect Salesforce using OAuth (keep in mind we’ll probably add more CRMs in the future)
+    - Create a Salesforce OAuth app / “Connected App” for OAuth. There are public docs, multiple sandbox types and free Developer Edition orgs.
+- After you record a new meeting:
+    - Allow me to open a modal where I can review suggested updates to a Salesforce contact
+    - Show a search/select where I can search for a Salesforce contact
+    - Use the Salesforce API to pull the contact record
+    - Use AI to generate a list of suggested updates to the Salesforce record
+        - For example, if the user mentioned “My phone number is 8885550000 it suggests updating their phone number in the CRM”
+    - It should show the existing value in Salesforce and the AI suggested update to the field
+        
+        ![CleanShot 2025-12-02 at 16.50.54@2x.png](attachment:f7eef5f9-0f0f-4bf4-8a35-f7343f02e451:CleanShot_2025-12-02_at_16.50.542x.png)
+        
+    - After reviewing the updates, I can click “Update Salesforce” and it will sync the updates to the selected Salesforce contact.
+- Allow me to ask questions about contacts in both Hubspot or Salesforce using a chat interface (This is a chance to show off your front-end skills)
+    - Allow me to type a question, tag a contact in the message, and it’ll answer the question from information the CRM (Salesforce OR Hubspot depending on which is connected)
+    - The UI for reviewing and submitting updates should look exactly like this. We’d like to see your ability to match a design perfectly.
+        
+        ![CleanShot 2026-01-22 at 09.49.29@2x.png](attachment:25590f4e-db6b-4518-838a-b96cb6bb4f00:CleanShot_2026-01-22_at_09.49.292x.png)
+        
+
+The app should have good tests (strongly recommended to have AI write them).
+
+### How it will be evaluated
+
+- If it objectively does everything in the requirements above, with no bugs, you will be paid $3,000
+- Our decision on whether to hire you will depend on how clean your code is and if you helped improve the project:
+    - Did you update docs and make it easier for the next person to work on?
+    - Did you clean up code that was messy or hard to understand?
+    - Did you “make the change easy, then make the easy change?”
