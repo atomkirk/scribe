@@ -89,14 +89,14 @@
                         <p class="text-gray-900 whitespace-pre-wrap text-lg font-medium"><%= message.content %></p>
                     </div>
                     <!-- Sources link -->
-                    <div class="mt-2 flex items-center gap-2">
+                    <div class="mt-1 flex items-center gap-2 ml-4">
                         <a href="/dashboard/meetings"
-                            class="text-xs text-blue-500 hover:text-blue-700 font-medium flex items-center gap-1 cursor-pointer">
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.658 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                            </svg>
+                            class="text-sm text-gray-300 font-medium flex items-center gap-1 cursor-pointer">
                             Sources
+                            <div
+                                class="w-5 h-5 rounded-full bg-gray-600 flex items-center justify-center text-white text-xs">
+                                M
+                            </div>
                         </a>
                     </div>
                 </div>
@@ -195,7 +195,7 @@
                 <% end %>
                 <div class="flex justify-between">
                     <!-- Sources indicator -->
-                    <a href="/dashboard/meetings" class="flex items-center gap-2 px-0 py-2 text-md text-gray-300 font-semibold">
+                    <a href="/dashboard/meetings" class="flex items-center gap-2 px-0 text-md text-gray-300 font-semibold">
                         <span class="tranparent">Sources</span>
                         <div class="flex gap-1">
                             <div
@@ -210,8 +210,8 @@
                     </a>
                     <!-- Send button -->
                     <button type="submit" disabled={@loading}
-                        class="p-1.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg transition flex-shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                        class="p-1.5 h-8 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg transition flex-shrink-0">
+                        <svg class="h-4 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
                             stroke="currentColor" class="size-6">
                             <path stroke-linecap="round" stroke-linejoin="round"
                                 d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
