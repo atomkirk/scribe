@@ -47,7 +47,6 @@ defmodule SocialScribeWeb.ChatLive do
 
   @impl true
   def handle_event("select_chat", %{"chat_id" => chat_id}, socket) do
-    chat = ContactChats.get_contact_chat!(chat_id)
     messages = ContactChats.get_chat_messages(chat_id)
 
     socket =
@@ -73,7 +72,6 @@ defmodule SocialScribeWeb.ChatLive do
 
   @impl true
   def handle_event("change_provider", params, socket) do
-    IO.inspect(params, label: "provider changing")
     {:noreply, assign(socket, provider: params["provider"], error: nil)}
   end
 
@@ -292,11 +290,9 @@ defmodule SocialScribeWeb.ChatLive do
   defp search_contacts_in_crm(provider, credential, query) do
     case provider do
       "hubspot" ->
-        IO.inspect({:hubspot_search, credential, query}, label: "Searching HubSpot contacts")
         HubspotApi.search_contacts(credential, query)
 
       "salesforce" ->
-        IO.inspect({:salesforce_search, credential, query}, label: "searching sales force")
         SalesforceApi.search_contacts(credential, query)
 
       _ ->
@@ -314,32 +310,6 @@ defmodule SocialScribeWeb.ChatLive do
 
       _ ->
         {:error, :invalid_provider}
-    end
-  end
-
-  defp format_relative_time(datetime) do
-    now = DateTime.utc_now()
-    seconds_ago = DateTime.diff(now, datetime, :second)
-
-    cond do
-      seconds_ago < 60 ->
-        "just now"
-
-      seconds_ago < 3600 ->
-        minutes = div(seconds_ago, 60)
-        "#{minutes}m ago"
-
-      seconds_ago < 86400 ->
-        hours = div(seconds_ago, 3600)
-        "#{hours}h ago"
-
-      seconds_ago < 604800 ->
-        days = div(seconds_ago, 86400)
-        "#{days}d ago"
-
-      true ->
-        datetime
-        |> Calendar.strftime("%b %d")
     end
   end
 

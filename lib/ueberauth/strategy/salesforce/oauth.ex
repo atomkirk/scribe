@@ -29,8 +29,6 @@ defmodule Ueberauth.Strategy.Salesforce.OAuth do
   def client(opts \\ []) do
     config = Application.get_env(:ueberauth, __MODULE__, [])
 
-      IO.inspect(config, label: "Salesforce OAuth Config")
-
     instance_url = config[:instance_url] || "https://orgfarm-d043c8acd2-dev-ed.develop.my.salesforce-setup.com"
 
     opts =

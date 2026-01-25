@@ -96,7 +96,6 @@ defmodule SocialScribe.SalesforceApi do
       fields = Enum.join(@contact_fields, ", ")
 
       soql = "SELECT #{fields} FROM Contact WHERE Id = '#{sanitize_soql(contact_id)}' LIMIT 1"
-      escaped_query = URI.encode_query(%{"q" => soql})
       url = "/query?q=#{URI.encode(soql)}"
 
       case Tesla.get(client(instance_url, cred.token), url) do
