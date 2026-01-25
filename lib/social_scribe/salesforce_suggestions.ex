@@ -1,112 +1,43 @@
 defmodule SocialScribe.SalesforceSuggestions do
   @moduledoc """
-  Generates and formats Salesforce contact update suggestions by combining
-  AI-extracted data with existing Salesforce contact information.
+  Salesforce-specific wrapper for CRM suggestions.
+
+  This module delegates to `SocialScribe.CrmSuggestions` for the actual implementation,
+  providing backward compatibility for existing code that uses Salesforce-specific functions.
+
+  For new code, consider using `SocialScribe.CrmSuggestions` directly with "salesforce" as
+  the provider argument.
   """
 
-  alias SocialScribe.AIContentGeneratorApi
-  alias SocialScribe.SalesforceApi
+  alias SocialScribe.CrmSuggestions
   alias SocialScribe.Accounts.UserCredential
 
-  @field_labels %{
-    "firstname" => "First Name",
-    "lastname" => "Last Name",
-    "email" => "Email",
-    "phone" => "Phone",
-    "mobilephone" => "Mobile Phone",
-    "jobtitle" => "Job Title",
-    "department" => "Department",
-    "address" => "Mailing Street",
-    "city" => "City",
-    "state" => "State",
-    "zip" => "ZIP Code",
-    "country" => "Country"
-  }
+  @provider "salesforce"
 
   @doc """
   Generates suggested updates for a Salesforce contact based on a meeting transcript.
 
-  Returns a list of suggestion maps, each containing:
-  - field: the Salesforce field name
-  - label: human-readable field label
-  - current_value: the existing value in Salesforce (or nil)
-  - new_value: the AI-suggested value
-  - context: explanation of where this was found in the transcript
-  - apply: boolean indicating whether to apply this update (default false)
+  Delegates to `CrmSuggestions.generate_suggestions/4`.
   """
   def generate_suggestions(%UserCredential{} = credential, contact_id, meeting) do
-    with {:ok, contact} <- SalesforceApi.get_contact(credential, contact_id),
-         {:ok, ai_suggestions} <- AIContentGeneratorApi.generate_salesforce_suggestions(meeting) do
-      suggestions =
-        ai_suggestions
-        |> Enum.map(fn suggestion ->
-          field = suggestion.field
-          current_value = get_contact_field(contact, field)
-
-          %{
-            field: field,
-            label: Map.get(@field_labels, field, field),
-            current_value: current_value,
-            new_value: suggestion.value,
-            context: suggestion.context,
-            apply: true,
-            has_change: current_value != suggestion.value
-          }
-        end)
-        |> Enum.filter(fn s -> s.has_change end)
-
-      {:ok, %{contact: contact, suggestions: suggestions}}
-    end
+    CrmSuggestions.generate_suggestions(credential, contact_id, meeting, @provider)
   end
 
   @doc """
   Generates suggestions without fetching contact data.
-  Useful when contact hasn't been selected yet.
+
+  Delegates to `CrmSuggestions.generate_suggestions_from_meeting/2`.
   """
   def generate_suggestions_from_meeting(meeting) do
-    case AIContentGeneratorApi.generate_salesforce_suggestions(meeting) do
-      {:ok, ai_suggestions} ->
-        suggestions =
-          ai_suggestions
-          |> Enum.map(fn suggestion ->
-            %{
-              field: suggestion.field,
-              label: Map.get(@field_labels, suggestion.field, suggestion.field),
-              current_value: nil,
-              new_value: suggestion.value,
-              context: Map.get(suggestion, :context),
-              timestamp: Map.get(suggestion, :timestamp),
-              apply: true,
-              has_change: true
-            }
-          end)
-
-        {:ok, suggestions}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    CrmSuggestions.generate_suggestions_from_meeting(meeting, @provider)
   end
 
   @doc """
   Merges AI suggestions with contact data to show current vs suggested values.
+
+  Delegates to `CrmSuggestions.merge_with_contact/3`.
   """
   def merge_with_contact(suggestions, contact) when is_list(suggestions) do
-    Enum.map(suggestions, fn suggestion ->
-      current_value = get_contact_field(contact, suggestion.field)
-
-      %{suggestion | current_value: current_value, has_change: current_value != suggestion.new_value, apply: true}
-    end)
-    |> Enum.filter(fn s -> s.has_change end)
+    CrmSuggestions.merge_with_contact(suggestions, contact, @provider)
   end
-
-  defp get_contact_field(contact, field) when is_map(contact) do
-    # Convert string field to atom for map access
-    field_atom = String.to_existing_atom(field)
-    Map.get(contact, field_atom)
-  rescue
-    ArgumentError -> nil
-  end
-
-  defp get_contact_field(_, _), do: nil
 end

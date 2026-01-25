@@ -310,15 +310,37 @@ defmodule SocialScribe.Accounts do
   end
 
   @doc """
-  Gets the user's HubSpot credential if one exists.
+  Gets the user's CRM credential for the specified provider if one exists.
+  Returns the most recently updated credential if multiple exist.
+
+  ## Parameters
+    - user_id: The user's ID
+    - provider: The CRM provider identifier ("hubspot", "salesforce", etc.)
+
+  ## Examples
+
+      iex> get_user_crm_credential(123, "hubspot")
+      %UserCredential{}
+
+      iex> get_user_crm_credential(123, "zoho")
+      nil
   """
-  def get_user_hubspot_credential(user_id) do
+  def get_user_crm_credential(user_id, provider) when is_binary(provider) do
     from(c in UserCredential,
-      where: c.user_id == ^user_id and c.provider == "hubspot",
+      where: c.user_id == ^user_id and c.provider == ^provider,
       order_by: [desc: :updated_at],
       limit: 1
     )
     |> Repo.one()
+  end
+
+  @doc """
+  Gets the user's HubSpot credential if one exists.
+
+  This is a convenience wrapper around `get_user_crm_credential/2`.
+  """
+  def get_user_hubspot_credential(user_id) do
+    get_user_crm_credential(user_id, "hubspot")
   end
 
   @doc """
@@ -337,15 +359,11 @@ defmodule SocialScribe.Accounts do
 
   @doc """
   Gets the user's Salesforce credential if one exists.
-  Returns the most recently updated credential if multiple exist.
+
+  This is a convenience wrapper around `get_user_crm_credential/2`.
   """
   def get_user_salesforce_credential(user_id) do
-    from(c in UserCredential,
-      where: c.user_id == ^user_id and c.provider == "salesforce",
-      order_by: [desc: :updated_at],
-      limit: 1
-    )
-    |> Repo.one()
+    get_user_crm_credential(user_id, "salesforce")
   end
 
   defp get_user_by_oauth_uid(provider, uid) do

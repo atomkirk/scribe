@@ -2,28 +2,27 @@ defmodule SocialScribeWeb.MeetingLive.CrmModalComponent do
   @moduledoc """
   A unified CRM modal component that works with any CRM provider.
   Accepts a `crm_provider` assign to configure behavior for HubSpot, Salesforce, or future CRMs.
+
+  To add support for a new CRM provider:
+  1. Add a new entry to `@crm_config` with the provider's display settings
+  2. Ensure the parent LiveView handles the generic CRM events (`:crm_search`, `:crm_generate_suggestions`, `:crm_apply_updates`)
   """
   use SocialScribeWeb, :live_component
 
   import SocialScribeWeb.ModalComponents
 
-  # CRM-specific configuration
+  # CRM-specific configuration - display and styling only
+  # Events are now generic and use the provider string as a parameter
   @crm_config %{
     hubspot: %{
       title: "Update in HubSpot",
       description: "Here are suggested updates to sync with your integrations based on this",
-      search_event: :hubspot_search,
-      suggestions_event: :generate_suggestions,
-      apply_event: :apply_hubspot_updates,
       button_class: "bg-hubspot-button hover:bg-hubspot-button-hover",
       info_template: "1 object, %{count} fields in 1 integration selected to update"
     },
     salesforce: %{
       title: "Update in Salesforce",
       description: "Here are suggested updates to sync with your Salesforce CRM based on this",
-      search_event: :salesforce_search,
-      suggestions_event: :generate_salesforce_suggestions,
-      apply_event: :apply_salesforce_updates,
       button_class: "bg-blue-600 hover:bg-blue-700",
       info_template: "1 contact, %{count} fields selected to update"
     }
@@ -149,14 +148,18 @@ defmodule SocialScribeWeb.MeetingLive.CrmModalComponent do
   defp get_config(provider) when is_atom(provider), do: Map.fetch!(@crm_config, provider)
   defp get_config(provider) when is_binary(provider), do: get_config(String.to_existing_atom(provider))
 
+  # Convert provider to string format for generic events
+  defp get_provider_string(provider) when is_atom(provider), do: Atom.to_string(provider)
+  defp get_provider_string(provider) when is_binary(provider), do: provider
+
   @impl true
   def handle_event("contact_search", %{"value" => query}, socket) do
     query = String.trim(query)
-    config = get_config(socket.assigns.crm_provider)
+    provider = get_provider_string(socket.assigns.crm_provider)
 
     if String.length(query) >= 2 do
       socket = assign(socket, searching: true, error: nil, query: query, dropdown_open: true)
-      send(self(), {config.search_event, query, socket.assigns.credential})
+      send(self(), {:crm_search, provider, query, socket.assigns.credential})
       {:noreply, socket}
     else
       {:noreply, assign(socket, query: query, contacts: [], dropdown_open: query != "")}
@@ -175,7 +178,7 @@ defmodule SocialScribeWeb.MeetingLive.CrmModalComponent do
 
   @impl true
   def handle_event("toggle_contact_dropdown", _params, socket) do
-    config = get_config(socket.assigns.crm_provider)
+    provider = get_provider_string(socket.assigns.crm_provider)
 
     if socket.assigns.dropdown_open do
       {:noreply, assign(socket, dropdown_open: false)}
@@ -183,7 +186,7 @@ defmodule SocialScribeWeb.MeetingLive.CrmModalComponent do
       # When opening dropdown with selected contact, search for similar contacts
       socket = assign(socket, dropdown_open: true, searching: true)
       query = "#{socket.assigns.selected_contact.firstname} #{socket.assigns.selected_contact.lastname}"
-      send(self(), {config.search_event, query, socket.assigns.credential})
+      send(self(), {:crm_search, provider, query, socket.assigns.credential})
       {:noreply, socket}
     end
   end
@@ -191,7 +194,7 @@ defmodule SocialScribeWeb.MeetingLive.CrmModalComponent do
   @impl true
   def handle_event("select_contact", %{"id" => contact_id}, socket) do
     contact = Enum.find(socket.assigns.contacts, &(&1.id == contact_id))
-    config = get_config(socket.assigns.crm_provider)
+    provider = get_provider_string(socket.assigns.crm_provider)
 
     if contact do
       socket = assign(socket,
@@ -202,7 +205,7 @@ defmodule SocialScribeWeb.MeetingLive.CrmModalComponent do
         query: "",
         suggestions: []
       )
-      send(self(), {config.suggestions_event, contact, socket.assigns.meeting, socket.assigns.credential})
+      send(self(), {:crm_generate_suggestions, provider, contact, socket.assigns.meeting, socket.assigns.credential})
       {:noreply, socket}
     else
       {:noreply, assign(socket, error: "Contact not found")}
@@ -250,7 +253,7 @@ defmodule SocialScribeWeb.MeetingLive.CrmModalComponent do
   @impl true
   def handle_event("apply_updates", %{"apply" => selected, "values" => values}, socket) do
     socket = assign(socket, loading: true, error: nil)
-    config = get_config(socket.assigns.crm_provider)
+    provider = get_provider_string(socket.assigns.crm_provider)
 
     updates =
       selected
@@ -259,7 +262,7 @@ defmodule SocialScribeWeb.MeetingLive.CrmModalComponent do
         Map.put(acc, field, Map.get(values, field, ""))
       end)
 
-    send(self(), {config.apply_event, updates, socket.assigns.selected_contact, socket.assigns.credential})
+    send(self(), {:crm_apply_updates, provider, updates, socket.assigns.selected_contact, socket.assigns.credential})
     {:noreply, socket}
   end
 

@@ -2,6 +2,12 @@ defmodule SocialScribe.CRMChat do
   @moduledoc """
   Context for CRM chat functionality.
   Handles asking questions about CRM contacts and managing chat history.
+
+  This module uses a provider-agnostic approach, delegating to the appropriate
+  CRM API based on the provider string. To add support for a new CRM:
+  1. Add the provider to `CrmFieldConfig.supported_providers/0`
+  2. Add a clause to `get_crm_api/1` in this module
+  3. Implement the CRM's API behaviour module
   """
 
   import Ecto.Query, warn: false
@@ -10,8 +16,7 @@ defmodule SocialScribe.CRMChat do
   alias SocialScribe.Chat.{ChatConversation, ChatMessage}
   alias SocialScribe.Accounts
   alias SocialScribe.Accounts.UserCredential
-  alias SocialScribe.HubspotApiBehaviour, as: HubspotApi
-  alias SocialScribe.SalesforceApiBehaviour, as: SalesforceApi
+  alias SocialScribe.CrmFieldConfig
   alias SocialScribe.AIContentGeneratorApi
 
   @doc """
@@ -108,15 +113,12 @@ defmodule SocialScribe.CRMChat do
   def fetch_contact_data(nil, _contact_id, _provider), do: {:ok, nil}
   def fetch_contact_data(_credential, nil, _provider), do: {:ok, nil}
 
-  def fetch_contact_data(%UserCredential{} = credential, contact_id, "hubspot") do
-    HubspotApi.get_contact_with_context(credential, contact_id)
+  def fetch_contact_data(%UserCredential{} = credential, contact_id, provider) do
+    case get_crm_api(provider) do
+      nil -> {:ok, nil}
+      api -> api.get_contact_with_context(credential, contact_id)
+    end
   end
-
-  def fetch_contact_data(%UserCredential{} = credential, contact_id, "salesforce") do
-    SalesforceApi.get_contact_with_context(credential, contact_id)
-  end
-
-  def fetch_contact_data(_credential, _contact_id, _provider), do: {:ok, nil}
 
   @doc """
   Searches for contacts in the connected CRM.
@@ -125,10 +127,14 @@ defmodule SocialScribe.CRMChat do
     {provider, credential} = determine_crm_provider(user, crm_provider)
 
     case {provider, credential} do
-      {nil, _} -> {:error, :no_crm_connected}
-      {"hubspot", cred} -> HubspotApi.search_contacts(cred, query)
-      {"salesforce", cred} -> SalesforceApi.search_contacts(cred, query)
-      _ -> {:error, :unsupported_provider}
+      {nil, _} ->
+        {:error, :no_crm_connected}
+
+      {prov, cred} ->
+        case get_crm_api(prov) do
+          nil -> {:error, :unsupported_provider}
+          api -> api.search_contacts(cred, query)
+        end
     end
   end
 
@@ -167,10 +173,10 @@ defmodule SocialScribe.CRMChat do
   Returns a list of {provider, credential} tuples.
   """
   def get_all_crm_credentials(user) do
-    hubspot = Accounts.get_user_hubspot_credential(user.id)
-    salesforce = Accounts.get_user_salesforce_credential(user.id)
-
-    [{"hubspot", hubspot}, {"salesforce", salesforce}]
+    CrmFieldConfig.supported_providers()
+    |> Enum.map(fn provider ->
+      {provider, Accounts.get_user_crm_credential(user.id, provider)}
+    end)
     |> Enum.reject(fn {_, cred} -> is_nil(cred) end)
   end
 
@@ -183,17 +189,12 @@ defmodule SocialScribe.CRMChat do
     |> Enum.map(fn {provider, _cred} -> provider end)
   end
 
-  # Search a single CRM for contacts
-  defp search_single_crm("hubspot", credential, query) do
-    HubspotApi.search_contacts(credential, query)
-  end
-
-  defp search_single_crm("salesforce", credential, query) do
-    SalesforceApi.search_contacts(credential, query)
-  end
-
-  defp search_single_crm(_provider, _credential, _query) do
-    {:ok, []}
+  # Search a single CRM for contacts using the appropriate API
+  defp search_single_crm(provider, credential, query) do
+    case get_crm_api(provider) do
+      nil -> {:ok, []}
+      api -> api.search_contacts(credential, query)
+    end
   end
 
   @doc """
@@ -207,27 +208,19 @@ defmodule SocialScribe.CRMChat do
   # Private functions
 
   defp determine_crm_provider(user, nil) do
-    # Try HubSpot first, then Salesforce
-    case Accounts.get_user_hubspot_credential(user.id) do
-      %UserCredential{} = cred -> {"hubspot", cred}
-      nil ->
-        case Accounts.get_user_salesforce_credential(user.id) do
-          %UserCredential{} = cred -> {"salesforce", cred}
-          nil -> {nil, nil}
-        end
-    end
+    # Try each supported provider in order until we find one
+    CrmFieldConfig.supported_providers()
+    |> Enum.find_value({nil, nil}, fn provider ->
+      case Accounts.get_user_crm_credential(user.id, provider) do
+        %UserCredential{} = cred -> {provider, cred}
+        nil -> nil
+      end
+    end)
   end
 
-  defp determine_crm_provider(user, "hubspot") do
-    case Accounts.get_user_hubspot_credential(user.id) do
-      %UserCredential{} = cred -> {"hubspot", cred}
-      nil -> {nil, nil}
-    end
-  end
-
-  defp determine_crm_provider(user, "salesforce") do
-    case Accounts.get_user_salesforce_credential(user.id) do
-      %UserCredential{} = cred -> {"salesforce", cred}
+  defp determine_crm_provider(user, provider) when is_binary(provider) do
+    case Accounts.get_user_crm_credential(user.id, provider) do
+      %UserCredential{} = cred -> {provider, cred}
       nil -> {nil, nil}
     end
   end
@@ -275,4 +268,9 @@ defmodule SocialScribe.CRMChat do
       {:ok, conversation}
     end
   end
+
+  # CRM API dispatch - add new providers here
+  defp get_crm_api("hubspot"), do: SocialScribe.HubspotApiBehaviour
+  defp get_crm_api("salesforce"), do: SocialScribe.SalesforceApiBehaviour
+  defp get_crm_api(_), do: nil
 end
