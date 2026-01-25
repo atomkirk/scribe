@@ -173,6 +173,12 @@ defmodule SocialScribeWeb.AuthController do
     end
   end
 
+  def callback(%{assigns: %{ueberauth_auth: _auth}} = conn, %{"provider" => provider})
+      when provider in ["hubspot", "salesforce"] do
+    conn
+    |> redirect(to: ~p"/users/log_in")
+  end
+
   def callback(%{assigns: %{ueberauth_auth: auth}} = conn, _params) do
     Logger.info("Google OAuth Login")
     Logger.info(auth)

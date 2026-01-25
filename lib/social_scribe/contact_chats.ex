@@ -63,7 +63,7 @@ defmodule SocialScribe.ContactChats do
   def list_chats_for_user(user_id) do
     ContactChat
     |> where([c], c.user_id == ^user_id)
-    |> order_by([c], desc: c.inserted_at)
+    |> order_by([c], [desc: c.inserted_at, desc: c.id])
     |> preload(:messages)
     |> Repo.all()
   end
