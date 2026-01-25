@@ -168,20 +168,6 @@
                   class="absolute bottom-full left-0 mb-2 w-72 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden"
                   phx-click-away="close_mention"
                 >
-                  <%!-- Header --%>
-                  <div class="px-3 py-2 bg-gray-50 border-b border-gray-100">
-                    <div class="flex items-center space-x-2">
-                      <span class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-xs font-medium text-blue-600">@</span>
-                      <span class="text-xs font-medium text-gray-600">
-                        <%= if @mention_query == "" do %>
-                          Type to search contacts
-                        <% else %>
-                          Searching "<%= @mention_query %>"
-                        <% end %>
-                      </span>
-                    </div>
-                  </div>
-
                   <%!-- Loading State --%>
                   <%= if @mention_searching do %>
                     <div class="px-3 py-4 flex items-center justify-center space-x-2">
@@ -266,31 +252,8 @@
                               <%= contact.email %>
                             </div>
                           </div>
-                          <%= if index == @mention_index do %>
-                            <div class="flex items-center space-x-1 text-xs text-gray-400">
-                              <kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono">↵</kbd>
-                            </div>
-                          <% end %>
                         </button>
                       <% end %>
-                    </div>
-                    <%!-- Keyboard hint --%>
-                    <div class="px-3 py-2 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-400">
-                      <div class="flex items-center space-x-2">
-                        <span class="flex items-center space-x-1">
-                          <kbd class="px-1 py-0.5 bg-white rounded border border-gray-200 font-mono">↑</kbd>
-                          <kbd class="px-1 py-0.5 bg-white rounded border border-gray-200 font-mono">↓</kbd>
-                          <span>navigate</span>
-                        </span>
-                        <span class="flex items-center space-x-1">
-                          <kbd class="px-1 py-0.5 bg-white rounded border border-gray-200 font-mono">↵</kbd>
-                          <span>select</span>
-                        </span>
-                      </div>
-                      <span class="flex items-center space-x-1">
-                        <kbd class="px-1 py-0.5 bg-white rounded border border-gray-200 font-mono">esc</kbd>
-                        <span>close</span>
-                      </span>
                     </div>
                   <% end %>
 
