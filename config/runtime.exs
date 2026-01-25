@@ -106,6 +106,10 @@ if config_env() == :prod do
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PORT") || "4000")
 
+  # Configure WebSocket origin checking using PHX_HOST
+  # Uses the same host configured for the app URL
+  check_origin = ["//#{host}"]
+
   config :social_scribe, SocialScribeWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [
@@ -116,6 +120,7 @@ if config_env() == :prod do
       ip: {0, 0, 0, 0, 0, 0, 0, 0},
       port: port
     ],
+    check_origin: check_origin,
     secret_key_base: secret_key_base
 
   config :ueberauth, Ueberauth.Strategy.Google.OAuth,
