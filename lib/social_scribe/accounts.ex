@@ -313,17 +313,20 @@ defmodule SocialScribe.Accounts do
   Gets the user's HubSpot credential if one exists.
   """
   def get_user_hubspot_credential(user_id) do
-    Repo.get_by(UserCredential, user_id: user_id, provider: "hubspot")
+    from(c in UserCredential,
+      where: c.user_id == ^user_id and c.provider == "hubspot",
+      order_by: [desc: :updated_at],
+      limit: 1
+    )
+    |> Repo.one()
   end
 
   @doc """
   Finds or creates a Salesforce credential for a user.
-  Salesforce uses a single credential per user (instance_url stored in uid).
+  Salesforce uses a single credential per instance_url (stored in uid).
   """
   def find_or_create_salesforce_credential(user, attrs) do
-    # For Salesforce, we only allow one credential per user
-    # The uid field stores the instance_url for API calls
-    case get_user_salesforce_credential(user.id) do
+    case get_user_credential(user, "salesforce", attrs.uid) do
       nil ->
         create_user_credential(attrs)
 
@@ -334,9 +337,15 @@ defmodule SocialScribe.Accounts do
 
   @doc """
   Gets the user's Salesforce credential if one exists.
+  Returns the most recently updated credential if multiple exist.
   """
   def get_user_salesforce_credential(user_id) do
-    Repo.get_by(UserCredential, user_id: user_id, provider: "salesforce")
+    from(c in UserCredential,
+      where: c.user_id == ^user_id and c.provider == "salesforce",
+      order_by: [desc: :updated_at],
+      limit: 1
+    )
+    |> Repo.one()
   end
 
   defp get_user_by_oauth_uid(provider, uid) do
