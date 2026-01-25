@@ -140,7 +140,7 @@ Each service has setup gotchas. These docs save you hours of debugging.
 
 * **LiveView Component:** Located at `lib/social_scribe_web/live/meeting_live/hubspot_modal_component.ex`
 * **Contact Search:** Debounced input triggers HubSpot API search, results displayed in dropdown
-* **AI Suggestions:** Fetched via `HubspotSuggestions.generate_suggestions` which calls Gemini with transcript context
+* **AI Suggestions:** Fetched via `CrmSuggestions.generate_suggestions` which calls Gemini with transcript context
 * **Suggestion Cards:** Each card displays:
     * Field label
     * Current value (strikethrough)
