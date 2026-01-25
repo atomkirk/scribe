@@ -13,4 +13,22 @@ Hooks.Clipboard = {
     }
 }
 
+Hooks.ScrollToBottom = {
+    mounted() {
+        this.scrollToBottom()
+        // Watch for updates
+        this.handleEvent("scroll-to-bottom", () => {
+            this.scrollToBottom()
+        })
+    },
+    updated() {
+        this.scrollToBottom()
+    },
+    scrollToBottom() {
+        setTimeout(() => {
+            this.el.scrollTop = this.el.scrollHeight
+        }, 0)
+    }
+}
+
 export default Hooks
