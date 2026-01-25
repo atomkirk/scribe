@@ -9,10 +9,12 @@ config :bcrypt_elixir, :log_rounds, 1
 # The MIX_TEST_PARTITION environment variable can be used
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
+db_host = System.get_env("DB_HOST") || "localhost"
+
 config :social_scribe, SocialScribe.Repo,
   username: "postgres",
   password: "postgres",
-  hostname: "localhost",
+  hostname: db_host,
   database: "social_scribe_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2

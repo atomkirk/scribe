@@ -1,14 +1,27 @@
 import Config
 
 # Configure your database
-config :social_scribe, SocialScribe.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "social_scribe_dev",
-  stacktrace: true,
-  show_sensitive_data_on_connection_error: true,
-  pool_size: 10
+# lib/social_scribe/repo.ex (referenced by config)
+database_url = System.get_env("DATABASE_URL")
+
+if database_url do
+  # Inside Docker
+  config :social_scribe, SocialScribe.Repo,
+    url: database_url,
+    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
+    stacktrace: true,
+    show_sensitive_data_on_connection_error: true
+else
+  # Local Development (Non-Docker)
+  config :social_scribe, SocialScribe.Repo,
+    username: "postgres",
+    password: "postgres",
+    hostname: "localhost",
+    database: "social_scribe_dev",
+    stacktrace: true,
+    show_sensitive_data_on_connection_error: true,
+    pool_size: 10
+end
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
