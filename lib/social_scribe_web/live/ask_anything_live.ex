@@ -442,7 +442,7 @@ defmodule SocialScribeWeb.AskAnythingLive do
         avatar_html = render_mention_avatar(contact, mention_name)
 
         Phoenix.HTML.raw("""
-        <span class="inline-flex items-center bg-white text-gray-900 rounded-full px-2 py-0.5 text-sm font-medium border border-gray-200">
+        <span class="inline-flex items-center bg-white text-gray-900 rounded-full pl-0.5 pr-2 py-0.5 text-sm font-medium border border-gray-200">
           #{avatar_html}
           #{escaped_name}
         </span>
@@ -456,31 +456,12 @@ defmodule SocialScribeWeb.AskAnythingLive do
 
   def render_message_with_mentions(_, _), do: ""
 
-  # Renders the avatar for a mention - photo if available, initials otherwise
-  defp render_mention_avatar(nil, name) do
-    # No contact found - show initials
+  # Renders the avatar for a mention - always show initials
+  defp render_mention_avatar(_contact, name) do
     initials = get_initials(name)
     """
     <span class="w-4 h-4 rounded-full bg-[#C6CCD1] flex items-center justify-center text-[8px] font-semibold text-[#0C1216] mr-1.5 flex-shrink-0">#{initials}</span>
     """
-  end
-
-  defp render_mention_avatar(contact, name) do
-    photo_url = Map.get(contact, :photo_url) || contact[:photo_url]
-
-    if photo_url do
-      # Show photo with onerror fallback to initials
-      initials = get_initials(name)
-      """
-      <img src="#{Phoenix.HTML.html_escape(photo_url) |> Phoenix.HTML.safe_to_string()}" class="w-4 h-4 rounded-full mr-1.5 flex-shrink-0 object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><span class="w-4 h-4 rounded-full bg-[#C6CCD1] items-center justify-center text-[8px] font-semibold text-[#0C1216] mr-1.5 flex-shrink-0 hidden">#{initials}</span>
-      """
-    else
-      # No photo - show initials
-      initials = get_initials(name)
-      """
-      <span class="w-4 h-4 rounded-full bg-[#C6CCD1] flex items-center justify-center text-[8px] font-semibold text-[#0C1216] mr-1.5 flex-shrink-0">#{initials}</span>
-      """
-    end
   end
 
   defp get_initials(name) do

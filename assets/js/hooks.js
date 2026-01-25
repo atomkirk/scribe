@@ -100,18 +100,11 @@ Hooks.MentionInput = {
     buildChipHtml(contactName, contactId, photoUrl, firstname, lastname) {
         const initials = this.getInitials(firstname, lastname, contactName)
         const escapedName = contactName.replace(/</g, "&lt;").replace(/>/g, "&gt;")
-        const escapedPhotoUrl = photoUrl ? photoUrl.replace(/"/g, "&quot;") : ""
         
-        let avatarHtml
-        if (photoUrl) {
-            // Photo with fallback to initials
-            avatarHtml = `<img src="${escapedPhotoUrl}" class="w-4 h-4 rounded-full mr-1.5 flex-shrink-0 object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><span class="w-4 h-4 rounded-full bg-[#C6CCD1] items-center justify-center text-[8px] font-semibold text-[#0C1216] mr-1.5 flex-shrink-0 hidden">${initials}</span>`
-        } else {
-            // Just initials
-            avatarHtml = `<span class="w-4 h-4 rounded-full bg-[#C6CCD1] flex items-center justify-center text-[8px] font-semibold text-[#0C1216] mr-1.5 flex-shrink-0">${initials}</span>`
-        }
+        // Always show initials
+        const avatarHtml = `<span class="w-4 h-4 rounded-full bg-[#C6CCD1] flex items-center justify-center text-[8px] font-semibold text-[#0C1216] mr-1.5 flex-shrink-0">${initials}</span>`
         
-        return `<span contenteditable="false" data-mention="true" data-contact-id="${contactId}" data-contact-name="${escapedName}" class="inline-flex items-center bg-white text-gray-900 rounded-full px-2 py-0.5 text-sm font-medium border border-gray-200">${avatarHtml}${escapedName}</span>`
+        return `<span contenteditable="false" data-mention="true" data-contact-id="${contactId}" data-contact-name="${escapedName}" class="inline-flex items-center bg-white text-gray-900 rounded-full pl-0.5 pr-2 py-0.5 text-sm font-medium border border-gray-200">${avatarHtml}${escapedName}</span>`
     },
     
     insertMention(contactName, contactId, photoUrl, firstname, lastname) {
