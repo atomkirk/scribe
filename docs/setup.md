@@ -92,3 +92,14 @@ iex -S mix phx.server # run with interactive shell
 **Missing API errors at runtime**
 - Check all required env vars are set: `echo $GOOGLE_CLIENT_ID`
 - Make sure you sourced the env file: `source .env`
+
+## Deployment
+
+The project includes a `fly.toml` and `Dockerfile` configured for [Fly.io](https://fly.io). To deploy:
+
+1. Install the Fly CLI and authenticate: [fly.io/docs/elixir/getting-started](https://fly.io/docs/elixir/getting-started/)
+2. Create your app: `fly launch`
+3. Set your secrets: `fly secrets set GOOGLE_CLIENT_ID=... HUBSPOT_CLIENT_SECRET=...`
+4. Deploy: `fly deploy`
+
+See the Fly Elixir docs for details on setting up a Postgres database and configuring your app.
