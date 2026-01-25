@@ -5,6 +5,8 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=postgres
+    volumes:
+      - db_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
   app:
@@ -23,3 +25,6 @@ services:
       - MIX_ENV=prod
       - POOL_SIZE=20
       - SECRET_KEY_BASE=eRGTVSkAW5Q1+DdPcfZY7cFO5rNrfqrG68h74GW3UVBJK1ASAASYC392EAkSZyhf
+
+volumes:
+  db_data:
