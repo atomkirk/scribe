@@ -35,7 +35,7 @@ defmodule SocialScribeWeb.AskAnythingLive do
       |> assign(:contact_search_results, [])
       |> assign(:contact_dropdown_open, false)
       |> assign(:searching_contacts, false)
-      |> assign(:panel_open, true)
+      |> assign(:panel_open, false)
       # Inline @ mention state
       |> assign(:mention_active, false)
       |> assign(:mention_query, "")
