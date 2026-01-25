@@ -343,10 +343,11 @@ defmodule SocialScribeWeb.ChatLive do
     end
   end
 
-  defp format_chat_date(datetime) when is_struct(datetime, DateTime) do
-    datetime
-    |> Calendar.strftime("%A, %B %d, %Y at %I:%M %p")
-  end
+defp format_chat_date(dt) when is_struct(dt, DateTime) or is_struct(dt, NaiveDateTime) do
+  # %I:%M%P  -> 11:50am
+  # %B %d, %Y -> November 13, 2025
+  Calendar.strftime(dt, "%I:%M%P - %B %d, %Y")
+end
 
-  defp format_chat_date(_), do: "Today"
+defp format_chat_date(_), do: "Date Unknown"
 end
