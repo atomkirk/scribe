@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    ports:
+      - "5432:5432"
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    ports:
+      - "4000:4000"
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=ecto://postgres:postgres@db:5432/postgres
+      - PHX_HOST=localhost
+      - PHX_SERVER=true
+      - MIX_ENV=prod
+      - POOL_SIZE=20
+      - SECRET_KEY_BASE=eRGTVSkAW5Q1+DdPcfZY7cFO5rNrfqrG68h74GW3UVBJK1ASAASYC392EAkSZyhf
