@@ -175,32 +175,36 @@
   />
 </.modal>
 
-<.hubspot_modal
+<.crm_modal
   :if={@live_action == :hubspot && @hubspot_credential}
   id="hubspot-modal-wrapper"
+  crm_provider={:hubspot}
   show
   on_cancel={JS.patch(~p"/dashboard/meetings/#{@meeting}")}
 >
   <.live_component
-    module={SocialScribeWeb.MeetingLive.HubspotModalComponent}
+    module={SocialScribeWeb.MeetingLive.CrmModalComponent}
     id="hubspot-modal"
+    crm_provider={:hubspot}
     meeting={@meeting}
     credential={@hubspot_credential}
     modal_id="hubspot-modal-wrapper"
   />
-</.hubspot_modal>
+</.crm_modal>
 
-<.salesforce_modal
+<.crm_modal
   :if={@live_action == :salesforce && @salesforce_credential}
   id="salesforce-modal-wrapper"
+  crm_provider={:salesforce}
   show
   on_cancel={JS.patch(~p"/dashboard/meetings/#{@meeting}")}
 >
   <.live_component
-    module={SocialScribeWeb.MeetingLive.SalesforceModalComponent}
+    module={SocialScribeWeb.MeetingLive.CrmModalComponent}
     id="salesforce-modal"
+    crm_provider={:salesforce}
     meeting={@meeting}
     credential={@salesforce_credential}
     modal_id="salesforce-modal-wrapper"
   />
-</.salesforce_modal>
+</.crm_modal>

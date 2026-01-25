@@ -26,8 +26,7 @@ defmodule SocialScribe.SalesforceApi do
     "MailingCity",
     "MailingState",
     "MailingPostalCode",
-    "MailingCountry",
-    "PhotoUrl"
+    "MailingCountry"
   ]
 
   defp client(access_token) do
@@ -293,7 +292,7 @@ defmodule SocialScribe.SalesforceApi do
   defp parse_query_results(_, _instance_url), do: []
 
   # Format a Salesforce contact response into a cleaner structure
-  defp format_contact(%{"Id" => id} = contact, instance_url) do
+  defp format_contact(%{"Id" => id} = contact, _instance_url) do
     %{
       id: id,
       firstname: contact["FirstName"],
@@ -309,7 +308,6 @@ defmodule SocialScribe.SalesforceApi do
       zip: contact["MailingPostalCode"],
       country: contact["MailingCountry"],
       display_name: format_display_name(contact),
-      photo_url: build_photo_url(contact["PhotoUrl"], instance_url),
       crm_provider: "salesforce"
     }
   end
@@ -355,13 +353,6 @@ defmodule SocialScribe.SalesforceApi do
   end
 
   defp parse_datetime(other), do: other
-
-  # Build full photo URL from relative path
-  defp build_photo_url(nil, _instance_url), do: nil
-  defp build_photo_url("", _instance_url), do: nil
-  defp build_photo_url(relative_path, instance_url) do
-    instance_url <> relative_path
-  end
 
   defp format_display_name(contact) do
     firstname = contact["FirstName"] || ""

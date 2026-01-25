@@ -313,7 +313,6 @@ defmodule SocialScribeWeb.AskAnythingLive do
       |> push_event("insert_mention", %{
         contact_name: contact.display_name,
         contact_id: contact.id,
-        photo_url: contact.photo_url,
         firstname: contact.firstname,
         lastname: contact.lastname
       })

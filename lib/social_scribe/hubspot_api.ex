@@ -28,8 +28,7 @@ defmodule SocialScribe.HubspotApi do
     "country",
     "website",
     "hs_linkedin_url",
-    "twitterhandle",
-    "hs_avatar_filemanager_key"
+    "twitterhandle"
   ]
 
   defp client(access_token) do
@@ -308,7 +307,6 @@ defmodule SocialScribe.HubspotApi do
       linkedin_url: properties["hs_linkedin_url"],
       twitter_handle: properties["twitterhandle"],
       display_name: format_display_name(properties),
-      photo_url: build_photo_url(properties["hs_avatar_filemanager_key"]),
       crm_provider: "hubspot"
     }
   end
@@ -366,14 +364,6 @@ defmodule SocialScribe.HubspotApi do
   end
 
   defp parse_hubspot_timestamp(_), do: nil
-
-  # Build photo URL from HubSpot file manager key
-  # Note: HubSpot avatar API access is limited - this only works for manually uploaded photos
-  defp build_photo_url(nil), do: nil
-  defp build_photo_url(""), do: nil
-  defp build_photo_url(file_key) do
-    "https://api.hubapi.com/filemanager/api/v3/files/#{file_key}/signed-url"
-  end
 
   defp format_display_name(properties) do
     firstname = properties["firstname"] || ""

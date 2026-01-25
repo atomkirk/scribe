@@ -1,19 +1,12 @@
-let Hooks = {}
+/**
+ * Ask Anything hooks - Hooks specific to the Ask Anything chat feature
+ * Contains: MentionInput, LocalTime, ScrollToBottom
+ */
 
-Hooks.Clipboard = {
-    mounted() {
-        this.handleEvent("copy-to-clipboard", ({ text: text }) => {
-            navigator.clipboard.writeText(text).then(() => {
-                this.pushEventTo(this.el, "copied-to-clipboard", { text: text })
-                setTimeout(() => {
-                    this.pushEventTo(this.el, "reset-copied", {})
-                }, 2000)
-            })
-        })
-    }
-}
-
-Hooks.MentionInput = {
+/**
+ * MentionInput - Handles @mention functionality in contenteditable input
+ */
+const MentionInput = {
     mounted() {
         this.mentionStart = null
         this.lastQuery = null
@@ -62,8 +55,8 @@ Hooks.MentionInput = {
         }
         
         // Listen for contact selection - insert the mention chip
-        this.handleEvent("insert_mention", ({ contact_name, contact_id, photo_url, firstname, lastname }) => {
-            this.insertMention(contact_name, contact_id, photo_url, firstname, lastname)
+        this.handleEvent("insert_mention", ({ contact_name, contact_id, firstname, lastname }) => {
+            this.insertMention(contact_name, contact_id, firstname, lastname)
         })
         
         // Listen for focus request
@@ -97,7 +90,7 @@ Hooks.MentionInput = {
     },
     
     // Build the chip HTML
-    buildChipHtml(contactName, contactId, photoUrl, firstname, lastname) {
+    buildChipHtml(contactName, contactId, firstname, lastname) {
         const initials = this.getInitials(firstname, lastname, contactName)
         const escapedName = contactName.replace(/</g, "&lt;").replace(/>/g, "&gt;")
         
@@ -107,7 +100,7 @@ Hooks.MentionInput = {
         return `<span contenteditable="false" data-mention="true" data-contact-id="${contactId}" data-contact-name="${escapedName}" class="inline-flex items-center bg-white text-gray-900 rounded-full pl-0.5 pr-2 py-0.5 text-sm font-medium border border-gray-200">${avatarHtml}${escapedName}</span>`
     },
     
-    insertMention(contactName, contactId, photoUrl, firstname, lastname) {
+    insertMention(contactName, contactId, firstname, lastname) {
         if (this.mentionRange) {
             const selection = window.getSelection()
             
@@ -119,7 +112,7 @@ Hooks.MentionInput = {
             this.mentionRange.deleteContents()
             
             // Create the chip element
-            const chipHtml = this.buildChipHtml(contactName, contactId, photoUrl, firstname, lastname)
+            const chipHtml = this.buildChipHtml(contactName, contactId, firstname, lastname)
             const template = document.createElement("template")
             template.innerHTML = chipHtml
             const chipNode = template.content.firstChild
@@ -371,7 +364,10 @@ Hooks.MentionInput = {
     }
 }
 
-Hooks.LocalTime = {
+/**
+ * LocalTime - Converts UTC timestamps to local time display
+ */
+const LocalTime = {
     mounted() {
         this.updateTime()
     },
@@ -403,7 +399,10 @@ Hooks.LocalTime = {
     }
 }
 
-Hooks.ScrollToBottom = {
+/**
+ * ScrollToBottom - Auto-scrolls container to bottom on mount/update
+ */
+const ScrollToBottom = {
     mounted() {
         this.scrollToBottom()
     },
@@ -415,4 +414,4 @@ Hooks.ScrollToBottom = {
     }
 }
 
-export default Hooks
+export { MentionInput, LocalTime, ScrollToBottom }

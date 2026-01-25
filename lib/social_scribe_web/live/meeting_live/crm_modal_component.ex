@@ -1,19 +1,47 @@
-defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
+defmodule SocialScribeWeb.MeetingLive.CrmModalComponent do
+  @moduledoc """
+  A unified CRM modal component that works with any CRM provider.
+  Accepts a `crm_provider` assign to configure behavior for HubSpot, Salesforce, or future CRMs.
+  """
   use SocialScribeWeb, :live_component
 
   import SocialScribeWeb.ModalComponents
 
+  # CRM-specific configuration
+  @crm_config %{
+    hubspot: %{
+      title: "Update in HubSpot",
+      description: "Here are suggested updates to sync with your integrations based on this",
+      search_event: :hubspot_search,
+      suggestions_event: :generate_suggestions,
+      apply_event: :apply_hubspot_updates,
+      button_class: "bg-hubspot-button hover:bg-hubspot-button-hover",
+      info_template: "1 object, %{count} fields in 1 integration selected to update"
+    },
+    salesforce: %{
+      title: "Update in Salesforce",
+      description: "Here are suggested updates to sync with your Salesforce CRM based on this",
+      search_event: :salesforce_search,
+      suggestions_event: :generate_salesforce_suggestions,
+      apply_event: :apply_salesforce_updates,
+      button_class: "bg-blue-600 hover:bg-blue-700",
+      info_template: "1 contact, %{count} fields selected to update"
+    }
+  }
+
   @impl true
   def render(assigns) do
+    config = get_config(assigns.crm_provider)
     assigns = assign(assigns, :patch, ~p"/dashboard/meetings/#{assigns.meeting}")
-    assigns = assign_new(assigns, :modal_id, fn -> "hubspot-modal-wrapper" end)
+    assigns = assign_new(assigns, :modal_id, fn -> "#{assigns.crm_provider}-modal-wrapper" end)
+    assigns = assign(assigns, :config, config)
 
     ~H"""
     <div class="space-y-6">
       <div>
-        <h2 id={"#{@modal_id}-title"} class="text-xl font-medium tracking-tight text-slate-900">Update in HubSpot</h2>
+        <h2 id={"#{@modal_id}-title"} class="text-xl font-medium tracking-tight text-slate-900">{@config.title}</h2>
         <p id={"#{@modal_id}-description"} class="mt-2 text-base font-light leading-7 text-slate-500">
-          Here are suggested updates to sync with your integrations based on this
+          {@config.description}
           <span class="block">meeting</span>
         </p>
       </div>
@@ -34,6 +62,7 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
           loading={@loading}
           myself={@myself}
           patch={@patch}
+          config={@config}
         />
       <% end %>
     </div>
@@ -44,9 +73,12 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
   attr :loading, :boolean, required: true
   attr :myself, :any, required: true
   attr :patch, :string, required: true
+  attr :config, :map, required: true
 
   defp suggestions_section(assigns) do
     assigns = assign(assigns, :selected_count, Enum.count(assigns.suggestions, & &1.apply))
+    info_text = String.replace(assigns.config.info_template, "%{count}", to_string(assigns.selected_count))
+    assigns = assign(assigns, :info_text, info_text)
 
     ~H"""
     <div class="space-y-4">
@@ -69,18 +101,24 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
 
             <.modal_footer
               cancel_patch={@patch}
-              submit_text="Update HubSpot"
-              submit_class="bg-hubspot-button hover:bg-hubspot-button-hover"
+              submit_text={"Update #{format_crm_name(@config)}"}
+              submit_class={@config.button_class}
               disabled={@selected_count == 0}
               loading={@loading}
               loading_text="Updating..."
-              info_text={"1 object, #{@selected_count} fields in 1 integration selected to update"}
+              info_text={@info_text}
             />
           </form>
         <% end %>
       <% end %>
     </div>
     """
+  end
+
+  defp format_crm_name(%{title: title}) do
+    # Extract CRM name from title (e.g., "Update in HubSpot" -> "HubSpot")
+    title
+    |> String.replace("Update in ", "")
   end
 
   @impl true
@@ -108,13 +146,17 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
 
   defp maybe_select_all_suggestions(socket, _assigns), do: socket
 
+  defp get_config(provider) when is_atom(provider), do: Map.fetch!(@crm_config, provider)
+  defp get_config(provider) when is_binary(provider), do: get_config(String.to_existing_atom(provider))
+
   @impl true
   def handle_event("contact_search", %{"value" => query}, socket) do
     query = String.trim(query)
+    config = get_config(socket.assigns.crm_provider)
 
     if String.length(query) >= 2 do
       socket = assign(socket, searching: true, error: nil, query: query, dropdown_open: true)
-      send(self(), {:hubspot_search, query, socket.assigns.credential})
+      send(self(), {config.search_event, query, socket.assigns.credential})
       {:noreply, socket}
     else
       {:noreply, assign(socket, query: query, contacts: [], dropdown_open: query != "")}
@@ -133,13 +175,15 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
 
   @impl true
   def handle_event("toggle_contact_dropdown", _params, socket) do
+    config = get_config(socket.assigns.crm_provider)
+
     if socket.assigns.dropdown_open do
       {:noreply, assign(socket, dropdown_open: false)}
     else
       # When opening dropdown with selected contact, search for similar contacts
       socket = assign(socket, dropdown_open: true, searching: true)
       query = "#{socket.assigns.selected_contact.firstname} #{socket.assigns.selected_contact.lastname}"
-      send(self(), {:hubspot_search, query, socket.assigns.credential})
+      send(self(), {config.search_event, query, socket.assigns.credential})
       {:noreply, socket}
     end
   end
@@ -147,6 +191,7 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
   @impl true
   def handle_event("select_contact", %{"id" => contact_id}, socket) do
     contact = Enum.find(socket.assigns.contacts, &(&1.id == contact_id))
+    config = get_config(socket.assigns.crm_provider)
 
     if contact do
       socket = assign(socket,
@@ -157,7 +202,7 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
         query: "",
         suggestions: []
       )
-      send(self(), {:generate_suggestions, contact, socket.assigns.meeting, socket.assigns.credential})
+      send(self(), {config.suggestions_event, contact, socket.assigns.meeting, socket.assigns.credential})
       {:noreply, socket}
     else
       {:noreply, assign(socket, error: "Contact not found")}
@@ -205,6 +250,7 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
   @impl true
   def handle_event("apply_updates", %{"apply" => selected, "values" => values}, socket) do
     socket = assign(socket, loading: true, error: nil)
+    config = get_config(socket.assigns.crm_provider)
 
     updates =
       selected
@@ -213,7 +259,7 @@ defmodule SocialScribeWeb.MeetingLive.HubspotModalComponent do
         Map.put(acc, field, Map.get(values, field, ""))
       end)
 
-    send(self(), {:apply_hubspot_updates, updates, socket.assigns.selected_contact, socket.assigns.credential})
+    send(self(), {config.apply_event, updates, socket.assigns.selected_contact, socket.assigns.credential})
     {:noreply, socket}
   end
 
