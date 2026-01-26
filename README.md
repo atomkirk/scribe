@@ -9,7 +9,7 @@ Social Scribe is a powerful Elixir and Phoenix LiveView application designed to 
 ## 🚀 Quick Start
 
 ```bash
-docker-compose up -d              # Start Postgres (port 5433)
+docker-compose up -d              # Start Postgres (port 5432)
 cp .env.example .env              # Copy env template, fill in your API keys
 mix setup                         # Install deps, create DB, run migrations
 source .env && mix phx.server     # Run server

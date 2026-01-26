@@ -10,7 +10,6 @@
 ## Quick Start
 
 ```bash
-# 1. Start Postgres (uses port 5433 to avoid conflicts)
 docker-compose up -d
 
 # 2. Copy env template and fill in your credentials
@@ -30,7 +29,7 @@ App runs at [http://localhost:4000](http://localhost:4000)
 
 ### Option A: Docker (recommended)
 
-The included `docker-compose.yml` runs Postgres on port 5433:
+The included `docker-compose.yml` runs Postgres on port 5432:
 
 ```bash
 docker-compose up -d      # start
@@ -47,7 +46,7 @@ config :social_scribe, SocialScribe.Repo,
   username: "your_user",
   password: "your_pass",
   hostname: "localhost",
-  port: 5432,  # change from 5433
+  port: 5432,
   database: "social_scribe_dev"
 ```
 
@@ -83,7 +82,7 @@ iex -S mix phx.server # run with interactive shell
 
 **Database connection refused**
 - Check Postgres is running: `docker-compose ps`
-- Verify port 5433 isn't blocked
+- Verify port 5432 isn't blocked
 
 **OAuth callback errors**
 - Ensure redirect URIs in your OAuth apps match exactly what's in `.env`
@@ -92,14 +91,3 @@ iex -S mix phx.server # run with interactive shell
 **Missing API errors at runtime**
 - Check all required env vars are set: `echo $GOOGLE_CLIENT_ID`
 - Make sure you sourced the env file: `source .env`
-
-## Deployment
-
-The project includes a `fly.toml` and `Dockerfile` configured for [Fly.io](https://fly.io). To deploy:
-
-1. Install the Fly CLI and authenticate: [fly.io/docs/elixir/getting-started](https://fly.io/docs/elixir/getting-started/)
-2. Create your app: `fly launch`
-3. Set your secrets: `fly secrets set GOOGLE_CLIENT_ID=... HUBSPOT_CLIENT_SECRET=...`
-4. Deploy: `fly deploy`
-
-See the Fly Elixir docs for details on setting up a Postgres database and configuring your app.
