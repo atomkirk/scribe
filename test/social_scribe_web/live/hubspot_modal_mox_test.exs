@@ -114,7 +114,7 @@ defmodule SocialScribeWeb.HubspotModalMoxTest do
 
       # Also need to mock the AI content generator for suggestions
       SocialScribe.AIContentGeneratorMock
-      |> expect(:generate_hubspot_suggestions, fn _meeting ->
+      |> expect(:generate_crm_suggestions, fn _meeting, "hubspot" ->
         {:ok, mock_suggestions}
       end)
 

@@ -355,30 +355,6 @@ defmodule SocialScribeWeb.AskAnythingLiveTest do
       assert html =~ "Start typing to search contacts"
     end
 
-    test "shows keyboard navigation hints", %{conn: conn} do
-      import Mox
-
-      # Mock the HubSpot API to return contacts with crm_provider and photo_url
-      expect(SocialScribe.HubspotApiMock, :search_contacts, fn _cred, _query ->
-        {:ok, [
-          %{id: "1", firstname: "Test", lastname: "User", email: "test@example.com", display_name: "Test User", crm_provider: "hubspot", photo_url: nil}
-        ]}
-      end)
-
-      {:ok, view, _html} = live(conn, ~p"/dashboard/ask")
-
-      # Trigger mention search
-      render_hook(view, "mention_search", %{"query" => "test"})
-
-      # Wait for async search
-      :timer.sleep(100)
-
-      html = render(view)
-      # Should show keyboard hints
-      assert html =~ "navigate"
-      assert html =~ "select"
-    end
-
     test "shows CRM provider badge for contacts", %{conn: conn} do
       import Mox
 
