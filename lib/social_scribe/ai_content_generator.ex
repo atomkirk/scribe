@@ -56,6 +56,7 @@ defmodule SocialScribe.AIContentGenerator do
         fields = CrmFieldConfig.extractable_fields(crm_provider)
         fields_list = Enum.join(fields, ", ")
         crm_display_name = CrmFieldConfig.display_name(crm_provider)
+        field_hints = build_field_hints(fields)
 
         prompt = """
         You are an AI assistant that extracts contact information updates from meeting transcripts.
@@ -63,14 +64,7 @@ defmodule SocialScribe.AIContentGenerator do
         Analyze the following meeting transcript and extract any information that could be used to update a #{crm_display_name} contact record.
 
         Look for mentions of contact information such as:
-        - Phone numbers
-        - Email addresses
-        - Company/organization names
-        - Job titles or roles
-        - Department information
-        - Physical address details (street, city, state, zip, country)
-        - Website URLs
-        - Social media profiles (LinkedIn, Twitter)
+        #{field_hints}
 
         IMPORTANT: Only extract information that is EXPLICITLY mentioned in the transcript. Do not infer or guess.
 
@@ -98,7 +92,7 @@ defmodule SocialScribe.AIContentGenerator do
 
         case call_gemini(prompt) do
           {:ok, response} ->
-            parse_crm_suggestions(response)
+            parse_crm_suggestions(response, fields)
 
           {:error, reason} ->
             {:error, reason}
@@ -243,8 +237,37 @@ defmodule SocialScribe.AIContentGenerator do
     CrmFieldConfig.display_name(provider)
   end
 
+  # Builds dynamic field hints for the prompt based on CRM provider's extractable fields
+  defp build_field_hints(fields) do
+    field_descriptions = %{
+      "firstname" => "First names",
+      "lastname" => "Last names",
+      "email" => "Email addresses",
+      "phone" => "Phone numbers",
+      "mobilephone" => "Mobile phone numbers",
+      "company" => "Company/organization names",
+      "jobtitle" => "Job titles or roles",
+      "department" => "Department information",
+      "address" => "Street addresses",
+      "city" => "City names",
+      "state" => "State/province",
+      "zip" => "ZIP/postal codes",
+      "country" => "Country names",
+      "website" => "Website URLs",
+      "linkedin_url" => "LinkedIn profile URLs",
+      "twitter_handle" => "Twitter handles"
+    }
+
+    fields
+    |> Enum.map(fn field -> Map.get(field_descriptions, field, format_field_name(field)) end)
+    |> Enum.uniq()
+    |> Enum.map(fn desc -> "- #{desc}" end)
+    |> Enum.join("\n")
+  end
+
   # Shared parsing logic for both HubSpot and Salesforce CRM suggestions
-  defp parse_crm_suggestions(response) do
+  # Validates that returned fields are in the allowed list for the CRM provider
+  defp parse_crm_suggestions(response, valid_fields) do
     # Clean up the response - remove markdown code blocks if present
     cleaned =
       response
@@ -267,6 +290,8 @@ defmodule SocialScribe.AIContentGenerator do
             }
           end)
           |> Enum.filter(fn s -> s.field != nil and s.value != nil end)
+          # Filter out any fields not in the valid list for this CRM provider
+          |> Enum.filter(fn s -> s.field in valid_fields end)
 
         {:ok, formatted}
 
