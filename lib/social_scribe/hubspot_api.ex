@@ -148,7 +148,6 @@ defmodule SocialScribe.HubspotApi do
   """
   def get_contact_notes(%UserCredential{} = credential, contact_id) do
     with_token_refresh(credential, fn cred ->
-      # Step 1: Get associated note IDs
       assoc_body = %{inputs: [%{id: contact_id}]}
 
       case Tesla.post(client(cred.token), "/crm/v3/associations/contact/note/batch/read", assoc_body) do
@@ -163,7 +162,6 @@ defmodule SocialScribe.HubspotApi do
           if Enum.empty?(note_ids) do
             {:ok, []}
           else
-            # Step 2: Fetch note details
             fetch_notes_by_ids(cred, note_ids)
           end
 
@@ -186,7 +184,6 @@ defmodule SocialScribe.HubspotApi do
   """
   def get_contact_tasks(%UserCredential{} = credential, contact_id) do
     with_token_refresh(credential, fn cred ->
-      # Step 1: Get associated task IDs
       assoc_body = %{inputs: [%{id: contact_id}]}
 
       case Tesla.post(client(cred.token), "/crm/v3/associations/contact/task/batch/read", assoc_body) do
@@ -201,7 +198,6 @@ defmodule SocialScribe.HubspotApi do
           if Enum.empty?(task_ids) do
             {:ok, []}
           else
-            # Step 2: Fetch task details
             fetch_tasks_by_ids(cred, task_ids)
           end
 
@@ -351,11 +347,9 @@ defmodule SocialScribe.HubspotApi do
   end
 
   defp parse_hubspot_timestamp(timestamp) when is_binary(timestamp) do
-    # Try parsing as integer (milliseconds)
     case Integer.parse(timestamp) do
       {ms, ""} -> parse_hubspot_timestamp(ms)
       _ ->
-        # Try parsing as ISO string
         case DateTime.from_iso8601(timestamp) do
           {:ok, datetime, _offset} -> datetime
           _ -> timestamp
@@ -379,8 +373,7 @@ defmodule SocialScribe.HubspotApi do
     end
   end
 
-  # Wrapper that handles token refresh on auth errors
-  # Tries the API call, and if it fails with 401 or BAD_CLIENT_ID, refreshes token and retries once
+  # Handles token refresh on auth errors
   defp with_token_refresh(%UserCredential{} = credential, api_call) do
     with {:ok, credential} <- HubspotTokenRefresher.ensure_valid_token(credential) do
       case api_call.(credential) do

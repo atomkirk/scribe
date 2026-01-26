@@ -134,7 +134,6 @@ defmodule SocialScribe.CrmSuggestions do
   end
 
   defp get_contact_field(contact, field) when is_map(contact) do
-    # Convert string field to atom for map access
     field_atom = String.to_existing_atom(field)
     Map.get(contact, field_atom)
   rescue

@@ -80,10 +80,8 @@ defmodule SocialScribe.CRMChat do
     - {:error, reason}
   """
   def ask_question(user, conversation, question, contact_id \\ nil, crm_provider \\ nil) do
-    # Determine which CRM to use
     {provider, credential} = determine_crm_provider(user, crm_provider)
 
-    # Save the user's message
     user_message_attrs = %{
       role: "user",
       content: question,
@@ -205,10 +203,7 @@ defmodule SocialScribe.CRMChat do
     determine_crm_provider(user, nil)
   end
 
-  # Private functions
-
   defp determine_crm_provider(user, nil) do
-    # Try each supported provider in order until we find one
     CrmFieldConfig.supported_providers()
     |> Enum.find_value({nil, nil}, fn provider ->
       case Accounts.get_user_crm_credential(user.id, provider) do
@@ -257,7 +252,6 @@ defmodule SocialScribe.CRMChat do
 
   defp maybe_update_conversation_title(conversation, question) do
     if is_nil(conversation.title) or conversation.title == "" do
-      # Take first 50 chars of question as title
       title = String.slice(question, 0, 50)
       title = if String.length(question) > 50, do: title <> "...", else: title
 

@@ -138,24 +138,18 @@ defmodule SocialScribe.AIContentGenerator do
   end
 
   defp format_contact_for_prompt(contact_data, _crm_provider) when is_map(contact_data) do
-    # Separate notes and tasks from basic contact fields
     {notes, rest} = Map.pop(contact_data, :notes, [])
     {tasks, basic_fields} = Map.pop(rest, :tasks, [])
 
-    # Format basic contact information
     basic_info =
       basic_fields
       |> Enum.filter(fn {_k, v} -> v != nil and v != "" and not is_list(v) end)
       |> Enum.map(fn {k, v} -> "- #{format_field_name(k)}: #{v}" end)
       |> Enum.join("\n")
 
-    # Format notes section
     notes_section = format_notes_for_prompt(notes)
-
-    # Format tasks section
     tasks_section = format_tasks_for_prompt(tasks)
 
-    # Combine all sections
     [
       "## Contact Information",
       basic_info,

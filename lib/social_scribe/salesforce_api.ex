@@ -125,7 +125,6 @@ defmodule SocialScribe.SalesforceApi do
       case Tesla.patch(client(cred.token), url, salesforce_updates) do
         {:ok, %Tesla.Env{status: 204}} ->
           # Salesforce returns 204 No Content on successful update
-          # Fetch the updated contact to return it
           get_contact(credential, contact_id)
 
         {:ok, %Tesla.Env{status: 404, body: _body}} ->
@@ -173,8 +172,7 @@ defmodule SocialScribe.SalesforceApi do
       instance_url = get_instance_url(cred)
       escaped_id = escape_soql_query(contact_id)
 
-      # Query Tasks that have descriptions (commonly used for notes in Salesforce)
-      # Also include ContentNote-style records if they exist
+      # Query Tasks with descriptions (used for notes in Salesforce)
       soql_query =
         "SELECT Id, Subject, Description, ActivityDate, CreatedDate " <>
           "FROM Task " <>
@@ -263,21 +261,13 @@ defmodule SocialScribe.SalesforceApi do
     end
   end
 
-  # Get the instance URL from the credential
-  # The instance URL is stored in the uid field during OAuth
+  # Instance URL is stored in uid field during OAuth
   defp get_instance_url(%UserCredential{} = credential) do
     case credential do
       %{uid: uid} when is_binary(uid) and uid != "" ->
-        # The uid field contains the instance URL from OAuth
-        if String.starts_with?(uid, "https://") do
-          uid
-        else
-          # Fallback if uid doesn't contain a full URL
-          "https://login.salesforce.com"
-        end
+        if String.starts_with?(uid, "https://"), do: uid, else: "https://login.salesforce.com"
 
       _ ->
-        # Fallback to login.salesforce.com for API calls
         "https://login.salesforce.com"
     end
   end
@@ -399,8 +389,7 @@ defmodule SocialScribe.SalesforceApi do
     |> String.replace("'", "\\'")
   end
 
-  # Wrapper that handles token refresh on auth errors
-  # Tries the API call, and if it fails with 401, refreshes token and retries once
+  # Handles token refresh on auth errors
   defp with_token_refresh(%UserCredential{} = credential, api_call) do
     with {:ok, credential} <- SalesforceTokenRefresher.ensure_valid_token(credential) do
       case api_call.(credential) do

@@ -49,17 +49,9 @@ defmodule SocialScribe.SalesforceTokenRefresher do
 
     case refresh_token(credential.refresh_token) do
       {:ok, response} ->
-        # Salesforce refresh token response includes:
-        # - access_token (always)
-        # - instance_url (always)
-        # - id (identity URL)
-        # - issued_at (timestamp)
-        # Note: Salesforce doesn't always return a new refresh_token
         attrs = %{
           token: response["access_token"],
-          # Keep existing refresh_token if not provided in response
           refresh_token: response["refresh_token"] || credential.refresh_token,
-          # Salesforce tokens typically expire in 2 hours, but we'll set 1 hour to be safe
           expires_at: DateTime.add(DateTime.utc_now(), 3600, :second)
         }
 
