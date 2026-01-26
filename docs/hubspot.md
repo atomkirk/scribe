@@ -23,12 +23,18 @@ HubSpot has two app types:
 
 ## Required Scopes
 
-The app requests these scopes automatically:
-- `crm.objects.contacts.read` - read contact data
-- `crm.objects.contacts.write` - update contacts
-- `oauth` - basic OAuth
+**You must enable these scopes in your HubSpot app settings:**
 
-These are configured in `lib/ueberauth/strategy/hubspot.ex`.
+1. In your app settings, go to **Auth** tab
+2. Under **Scopes**, enable:
+   - `crm.objects.contacts.read` - read contact data
+   - `crm.objects.contacts.write` - update contacts  
+   - `oauth` - basic OAuth
+3. Save changes
+
+These scopes are configured in `lib/ueberauth/strategy/hubspot.ex` and `config/config.exs`.
+
+> **Note:** If you get a "scope mismatch" error, ensure the scopes enabled in HubSpot match exactly what's in the code.
 
 ## Environment Variables
 
