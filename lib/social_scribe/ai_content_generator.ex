@@ -5,6 +5,7 @@ defmodule SocialScribe.AIContentGenerator do
 
   alias SocialScribe.Meetings
   alias SocialScribe.Automations
+  alias SocialScribe.CrmFieldConfig
 
   @gemini_model "gemini-2.0-flash-lite"
   @gemini_api_base_url "https://generativelanguage.googleapis.com/v1beta/models"
@@ -46,33 +47,31 @@ defmodule SocialScribe.AIContentGenerator do
   end
 
   @impl SocialScribe.AIContentGeneratorApi
-  def generate_hubspot_suggestions(meeting) do
+  def generate_crm_suggestions(meeting, crm_provider) do
     case Meetings.generate_prompt_for_meeting(meeting) do
       {:error, reason} ->
         {:error, reason}
 
       {:ok, meeting_prompt} ->
+        fields = CrmFieldConfig.extractable_fields(crm_provider)
+        fields_list = Enum.join(fields, ", ")
+        crm_display_name = CrmFieldConfig.display_name(crm_provider)
+        field_hints = build_field_hints(fields)
+
         prompt = """
         You are an AI assistant that extracts contact information updates from meeting transcripts.
 
-        Analyze the following meeting transcript and extract any information that could be used to update a CRM contact record.
+        Analyze the following meeting transcript and extract any information that could be used to update a #{crm_display_name} contact record.
 
-        Look for mentions of:
-        - Phone numbers (phone, mobilephone)
-        - Email addresses (email)
-        - Company name (company)
-        - Job title/role (jobtitle)
-        - Physical address details (address, city, state, zip, country)
-        - Website URLs (website)
-        - LinkedIn profile (linkedin_url)
-        - Twitter handle (twitter_handle)
+        Look for mentions of contact information such as:
+        #{field_hints}
 
         IMPORTANT: Only extract information that is EXPLICITLY mentioned in the transcript. Do not infer or guess.
 
         The transcript includes timestamps in [MM:SS] format at the start of each line.
 
         Return your response as a JSON array of objects. Each object should have:
-        - "field": the CRM field name (use exactly: firstname, lastname, email, phone, mobilephone, company, jobtitle, address, city, state, zip, country, website, linkedin_url, twitter_handle)
+        - "field": the CRM field name (use exactly one of: #{fields_list})
         - "value": the extracted value
         - "context": a brief quote of where this was mentioned
         - "timestamp": the timestamp in MM:SS format where this was mentioned
@@ -82,7 +81,7 @@ defmodule SocialScribe.AIContentGenerator do
         Example response format:
         [
           {"field": "phone", "value": "555-123-4567", "context": "John mentioned 'you can reach me at 555-123-4567'", "timestamp": "01:23"},
-          {"field": "company", "value": "Acme Corp", "context": "Sarah said she just joined Acme Corp", "timestamp": "05:47"}
+          {"field": "jobtitle", "value": "Senior Engineer", "context": "Sarah said she was recently promoted to Senior Engineer", "timestamp": "05:47"}
         ]
 
         ONLY return valid JSON, no other text.
@@ -93,7 +92,7 @@ defmodule SocialScribe.AIContentGenerator do
 
         case call_gemini(prompt) do
           {:ok, response} ->
-            parse_hubspot_suggestions(response)
+            parse_crm_suggestions(response, fields)
 
           {:error, reason} ->
             {:error, reason}
@@ -101,7 +100,168 @@ defmodule SocialScribe.AIContentGenerator do
     end
   end
 
-  defp parse_hubspot_suggestions(response) do
+  @impl SocialScribe.AIContentGeneratorApi
+  def answer_crm_question(question, contact_data, crm_provider) do
+    prompt = build_crm_question_prompt(question, contact_data, crm_provider)
+    call_gemini(prompt)
+  end
+
+  defp build_crm_question_prompt(question, nil, _crm_provider) do
+    """
+    You are a helpful assistant that answers questions about CRM contacts and meetings.
+
+    The user is asking a question but has not selected a specific contact.
+    Please provide a helpful response and suggest that they can tag a contact using @ to get more specific information.
+
+    User's question: #{question}
+
+    Provide a helpful, concise response. If the question requires specific contact data, politely mention that tagging a contact with @ would help provide more accurate information.
+    """
+  end
+
+  defp build_crm_question_prompt(question, contact_data, crm_provider) do
+    contact_info = format_contact_for_prompt(contact_data, crm_provider)
+
+    """
+    You are a helpful assistant that answers questions about CRM contacts.
+
+    You have access to the following contact information from #{format_crm_name(crm_provider)}:
+
+    #{contact_info}
+
+    User's question: #{question}
+
+    Please provide a helpful, accurate, and concise response based on the contact data provided.
+    If the requested information is not available in the contact data, say so clearly.
+    Keep your response conversational and friendly.
+    """
+  end
+
+  defp format_contact_for_prompt(contact_data, _crm_provider) when is_map(contact_data) do
+    {notes, rest} = Map.pop(contact_data, :notes, [])
+    {tasks, basic_fields} = Map.pop(rest, :tasks, [])
+
+    basic_info =
+      basic_fields
+      |> Enum.filter(fn {_k, v} -> v != nil and v != "" and not is_list(v) end)
+      |> Enum.map(fn {k, v} -> "- #{format_field_name(k)}: #{v}" end)
+      |> Enum.join("\n")
+
+    notes_section = format_notes_for_prompt(notes)
+    tasks_section = format_tasks_for_prompt(tasks)
+
+    [
+      "## Contact Information",
+      basic_info,
+      "",
+      "## Recent Notes",
+      notes_section,
+      "",
+      "## Recent Tasks/Activities",
+      tasks_section
+    ]
+    |> Enum.join("\n")
+  end
+
+  defp format_contact_for_prompt(_, _), do: "No contact data available."
+
+  defp format_notes_for_prompt([]), do: "No notes available."
+
+  defp format_notes_for_prompt(notes) when is_list(notes) do
+    notes
+    |> Enum.with_index(1)
+    |> Enum.map(fn {note, idx} ->
+      body = note[:body] || note[:description] || "No content"
+      date = format_date(note[:created_at] || note[:activity_date])
+      subject = if note[:subject], do: " - #{note[:subject]}", else: ""
+      "#{idx}. [#{date}]#{subject}: #{truncate_text(body, 200)}"
+    end)
+    |> Enum.join("\n")
+  end
+
+  defp format_notes_for_prompt(_), do: "No notes available."
+
+  defp format_tasks_for_prompt([]), do: "No tasks available."
+
+  defp format_tasks_for_prompt(tasks) when is_list(tasks) do
+    tasks
+    |> Enum.with_index(1)
+    |> Enum.map(fn {task, idx} ->
+      subject = task[:subject] || "Untitled task"
+      status = task[:status] || "Unknown"
+      due_date = format_date(task[:due_date])
+      "#{idx}. #{subject} (Status: #{status}, Due: #{due_date})"
+    end)
+    |> Enum.join("\n")
+  end
+
+  defp format_tasks_for_prompt(_), do: "No tasks available."
+
+  defp format_date(nil), do: "N/A"
+  defp format_date(%DateTime{} = dt), do: Calendar.strftime(dt, "%Y-%m-%d")
+  defp format_date(%Date{} = d), do: Calendar.strftime(d, "%Y-%m-%d")
+  defp format_date(date) when is_binary(date), do: date
+  defp format_date(_), do: "N/A"
+
+  defp truncate_text(nil, _max), do: ""
+  defp truncate_text(text, max) when is_binary(text) do
+    if String.length(text) > max do
+      String.slice(text, 0, max) <> "..."
+    else
+      text
+    end
+  end
+  defp truncate_text(_, _), do: ""
+
+  defp format_field_name(field) when is_atom(field) do
+    field
+    |> Atom.to_string()
+    |> format_field_name()
+  end
+
+  defp format_field_name(field) when is_binary(field) do
+    field
+    |> String.replace("_", " ")
+    |> String.split(" ")
+    |> Enum.map(&String.capitalize/1)
+    |> Enum.join(" ")
+  end
+
+  defp format_crm_name(provider) do
+    CrmFieldConfig.display_name(provider)
+  end
+
+  # Builds dynamic field hints for the prompt based on CRM provider's extractable fields
+  defp build_field_hints(fields) do
+    field_descriptions = %{
+      "firstname" => "First names",
+      "lastname" => "Last names",
+      "email" => "Email addresses",
+      "phone" => "Phone numbers",
+      "mobilephone" => "Mobile phone numbers",
+      "company" => "Company/organization names",
+      "jobtitle" => "Job titles or roles",
+      "department" => "Department information",
+      "address" => "Street addresses",
+      "city" => "City names",
+      "state" => "State/province",
+      "zip" => "ZIP/postal codes",
+      "country" => "Country names",
+      "website" => "Website URLs",
+      "linkedin_url" => "LinkedIn profile URLs",
+      "twitter_handle" => "Twitter handles"
+    }
+
+    fields
+    |> Enum.map(fn field -> Map.get(field_descriptions, field, format_field_name(field)) end)
+    |> Enum.uniq()
+    |> Enum.map(fn desc -> "- #{desc}" end)
+    |> Enum.join("\n")
+  end
+
+  # Shared parsing logic for both HubSpot and Salesforce CRM suggestions
+  # Validates that returned fields are in the allowed list for the CRM provider
+  defp parse_crm_suggestions(response, valid_fields) do
     # Clean up the response - remove markdown code blocks if present
     cleaned =
       response
@@ -124,6 +284,8 @@ defmodule SocialScribe.AIContentGenerator do
             }
           end)
           |> Enum.filter(fn s -> s.field != nil and s.value != nil end)
+          # Filter out any fields not in the valid list for this CRM provider
+          |> Enum.filter(fn s -> s.field in valid_fields end)
 
         {:ok, formatted}
 

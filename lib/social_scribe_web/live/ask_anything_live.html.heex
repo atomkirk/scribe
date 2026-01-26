@@ -1,0 +1,404 @@
+<%!-- Overlay (when panel is open) --%>
+<div
+  class={[
+    "fixed inset-0 bg-black/20 z-40 transition-opacity duration-300",
+    @panel_open && "opacity-100",
+    !@panel_open && "opacity-0 pointer-events-none"
+  ]}
+  phx-click="toggle_panel"
+/>
+
+<%!-- Right Side Panel Container (clips overflow to prevent scrollbar) --%>
+<div class="fixed top-0 right-0 h-full w-full max-w-[400px] z-50 overflow-hidden pointer-events-none">
+  <div
+    class={[
+      "h-full w-full bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-in-out pointer-events-auto",
+      @panel_open && "translate-x-0",
+      !@panel_open && "translate-x-full"
+    ]}
+  >
+  <%!-- Header --%>
+  <div class="px-[30px] pt-5 pb-3">
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl text-[#131314]">Ask Anything</h1>
+      <button type="button" phx-click="toggle_panel" class="text-[#6B7179] hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <%!-- Tabs --%>
+  <div class="px-[30px] py-3">
+    <div class="flex items-center justify-between">
+      <div class="flex space-x-1">
+        <button
+          type="button"
+          phx-click="switch_tab"
+          phx-value-tab="chat"
+          class={[
+            "px-3 py-1 text-sm font-medium rounded-[8px] transition-colors",
+            @active_tab == :chat && "bg-[#F1F4F5] text-gray-900",
+            @active_tab != :chat && "text-gray-500 hover:text-gray-700"
+          ]}
+        >
+          Chat
+        </button>
+        <button
+          type="button"
+          phx-click="switch_tab"
+          phx-value-tab="history"
+          class={[
+            "px-3 py-1 text-sm font-medium rounded-[8px] transition-colors",
+            @active_tab == :history && "bg-[#F1F4F5] text-gray-900",
+            @active_tab != :history && "text-gray-500 hover:text-gray-700"
+          ]}
+        >
+          History
+        </button>
+      </div>
+      <button
+        type="button"
+        phx-click="new_chat"
+        class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <%!-- Content Area --%>
+  <div class="flex-1 overflow-hidden flex flex-col">
+    <%= if @active_tab == :chat do %>
+      <%!-- Chat Messages --%>
+      <div class="flex-1 overflow-y-auto px-[30px] py-3 space-y-4" id="chat-messages" phx-hook="ScrollToBottom">
+        <%!-- Timestamp --%>
+        <div class="flex items-center gap-3">
+          <div class="flex-1 h-px bg-gray-200"></div>
+          <span 
+            id="chat-timestamp" 
+            phx-hook="LocalTime" 
+            data-utc={DateTime.to_iso8601(DateTime.utc_now())}
+            class="text-xs text-gray-400 whitespace-nowrap"
+          >
+            <%= format_timestamp(DateTime.utc_now()) %>
+          </span>
+          <div class="flex-1 h-px bg-gray-200"></div>
+        </div>
+
+        <%!-- Welcome Message --%>
+        <%= if Enum.empty?(@messages) do %>
+          <div class="text-gray-600 text-sm leading-relaxed">
+            <%= get_welcome_message() %>
+          </div>
+        <% end %>
+
+        <%!-- Messages --%>
+        <%= for message <- @messages do %>
+          <%= if message.role == "user" do %>
+            <%!-- User Message --%>
+            <div class="flex justify-end">
+              <div class="bg-[#F1F4F5] rounded-[8px] px-4 py-3 max-w-[85%]">
+                <p class="text-sm text-gray-900">
+                  <%= render_message_with_mentions(message.content, Map.get(message, :mentioned_contacts, %{})) %>
+                </p>
+              </div>
+            </div>
+          <% else %>
+            <%!-- Assistant Message --%>
+            <div class="text-sm text-gray-700 prose-chat">
+              <%= render_markdown(message.content) %>
+            </div>
+          <% end %>
+        <% end %>
+
+        <%!-- Loading Indicator --%>
+        <%= if @loading do %>
+          <div class="flex items-center space-x-2 text-gray-400">
+            <div class="flex space-x-1">
+              <span class="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+              <span class="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+              <span class="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+            </div>
+            <span class="text-sm">Thinking...</span>
+          </div>
+        <% end %>
+      </div>
+
+      <%!-- Input Area --%>
+      <div class="px-[30px] py-4">
+        <%!-- Bordered Input Container --%>
+        <div class="border border-1 border-gray-200 focus-within:border-[#3270E8] rounded-2xl p-3 relative transition-colors">
+          <%!-- Add context button (disabled - not implemented) --%>
+          <div class="mb-3">
+            <button type="button" disabled class="inline-flex items-center px-3 py-1 border border-[#D5DADD] rounded-[8px] text-sm text-[#6B7179] opacity-50 cursor-not-allowed">
+              <span class="mr-1.5">@</span>
+              <span>Add context</span>
+            </button>
+          </div>
+
+          <%!-- Message Input with Inline @ Mention --%>
+          <form phx-submit="send_message" class="space-y-3" id="message-form">
+            <div class="relative">
+              <%!-- Hidden input to carry message value for form submission --%>
+              <input type="hidden" name="message" id="message-value" value={@input_value} />
+              <%!-- Contenteditable div for rich mention chips --%>
+              <div
+                contenteditable={if @loading, do: "false", else: "true"}
+                id="message-input"
+                phx-hook="MentionInput"
+                phx-keydown="keydown"
+                phx-update="ignore"
+                role="textbox"
+                aria-placeholder="Ask anything... type @ to mention a contact"
+                class={[
+                  "w-full min-h-[20px] text-sm text-gray-900 focus:outline-none bg-transparent",
+                  "empty:before:content-[attr(aria-placeholder)] empty:before:text-gray-400",
+                  @loading && "opacity-50 cursor-not-allowed"
+                ]}
+              ></div>
+
+              <%!-- Inline @ Mention Dropdown --%>
+              <%= if @mention_active do %>
+                <div
+                  id="mention-dropdown"
+                  class="absolute bottom-full left-0 mb-2 w-72 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden"
+                  phx-click-away="close_mention"
+                >
+                  <%!-- Loading State --%>
+                  <%= if @mention_searching do %>
+                    <div class="px-3 py-4 flex items-center justify-center space-x-2">
+                      <div class="flex space-x-1">
+                        <span class="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+                        <span class="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+                        <span class="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+                      </div>
+                      <span class="text-xs text-gray-500">Searching...</span>
+                    </div>
+                  <% end %>
+
+                  <%!-- No Results --%>
+                  <%= if !@mention_searching && @mention_query != "" && Enum.empty?(@mention_results) do %>
+                    <div class="px-3 py-4 text-center">
+                      <div class="text-gray-400 mb-1">
+                        <svg class="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      </div>
+                      <p class="text-sm text-gray-500">No contacts found</p>
+                      <p class="text-xs text-gray-400 mt-0.5">Try a different search term</p>
+                    </div>
+                  <% end %>
+
+                  <%!-- Empty State (just typed @) --%>
+                  <%= if !@mention_searching && @mention_query == "" && Enum.empty?(@mention_results) do %>
+                    <div class="px-3 py-4 text-center">
+                      <p class="text-sm text-gray-500">Start typing to search contacts</p>
+                      <p class="text-xs text-gray-400 mt-0.5">e.g. @john or @acme</p>
+                    </div>
+                  <% end %>
+
+                  <%!-- Contact Results --%>
+                  <%= if Enum.any?(@mention_results) do %>
+                    <div class="max-h-56 overflow-y-auto">
+                      <%= for {contact, index} <- Enum.with_index(@mention_results) do %>
+                        <button
+                          type="button"
+                          phx-click="select_mention_contact"
+                          phx-value-id={contact.id}
+                          class={[
+                            "w-full px-3 py-2.5 text-left flex items-center space-x-3 transition-colors",
+                            index == @mention_index && "bg-blue-50",
+                            index != @mention_index && "hover:bg-gray-50"
+                          ]}
+                        >
+                          <%!-- Avatar initials --%>
+                          <div class="relative">
+                            <div class={[
+                              "w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold",
+                              index == @mention_index && "bg-blue-100 text-blue-700",
+                              index != @mention_index && "bg-gray-100 text-gray-600"
+                            ]}>
+                              <%= String.at(contact.firstname || "", 0) %><%= String.at(contact.lastname || "", 0) %>
+                            </div>
+                            <%!-- CRM Provider Badge --%>
+                            <span
+                              class={[
+                                "absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center",
+                                contact.crm_provider == "hubspot" && "bg-orange-500",
+                                contact.crm_provider == "salesforce" && "bg-blue-500"
+                              ]}
+                              title={if contact.crm_provider == "hubspot", do: "HubSpot", else: "Salesforce"}
+                            >
+                              <%= if contact.crm_provider == "hubspot" do %>
+                                <span class="text-[8px] text-white font-bold">H</span>
+                              <% else %>
+                                <span class="text-[8px] text-white font-bold">S</span>
+                              <% end %>
+                            </span>
+                          </div>
+                          <div class="flex-1 min-w-0">
+                            <div class={[
+                              "text-sm font-medium truncate",
+                              index == @mention_index && "text-blue-900",
+                              index != @mention_index && "text-gray-900"
+                            ]}>
+                              <%= contact.firstname %> <%= contact.lastname %>
+                            </div>
+                            <div class="text-xs text-gray-500 truncate">
+                              <%= contact.email %>
+                            </div>
+                          </div>
+                        </button>
+                      <% end %>
+                    </div>
+                  <% end %>
+
+                  <%!-- No CRM Connected --%>
+                  <%= if Enum.empty?(@connected_crms) do %>
+                    <div class="px-3 py-4 text-center">
+                      <div class="text-gray-400 mb-1">
+                        <svg class="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                      </div>
+                      <p class="text-sm text-gray-500">No CRM connected</p>
+                      <p class="text-xs text-gray-400 mt-0.5">Connect HubSpot or Salesforce first</p>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+
+            <%!-- Sources + Send row --%>
+            <div class="flex items-center justify-between pt-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-400">Sources</span>
+                
+                <%= if @hubspot_credential || @salesforce_credential do %>
+                  <%!-- Overlapping logo stack --%>
+                  <div class="flex -space-x-1.5">
+                    <%= if @hubspot_credential do %>
+                      <img 
+                        src={~p"/images/integrations/hubspot-logo-min.png"} 
+                        alt="HubSpot" 
+                        class="w-5 h-5 rounded-full ring-2 ring-white object-cover"
+                      />
+                    <% end %>
+                    <%= if @salesforce_credential do %>
+                      <img 
+                        src={~p"/images/integrations/salesforce-logo-min.png"} 
+                        alt="Salesforce" 
+                        class="w-5 h-5 rounded-full ring-2 ring-white object-cover"
+                      />
+                    <% end %>
+                  </div>
+                <% else %>
+                  <span class="text-xs text-gray-400">No CRM connected</span>
+                <% end %>
+              </div>
+              <button
+                type="submit"
+                disabled={@loading}
+                data-loading={to_string(@loading)}
+                id="submit-btn"
+                class="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#E5EAED] text-[#8A9299] hover:bg-gray-200 hover:text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                </svg>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    <% else %>
+      <%!-- History Tab --%>
+      <div class="flex-1 overflow-y-auto px-[30px] py-3">
+        <%= if Enum.empty?(@conversations) do %>
+          <div class="text-center py-8">
+            <div class="text-gray-400 mb-2">
+              <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <p class="text-gray-500 text-sm">No conversations yet</p>
+            <p class="text-gray-400 text-xs mt-1">Start a new chat to begin</p>
+          </div>
+        <% else %>
+          <div class="space-y-2">
+            <%= for conversation <- @conversations do %>
+              <button
+                type="button"
+                phx-click="select_conversation"
+                phx-value-id={conversation.id}
+                class={[
+                  "w-full text-left px-4 py-3 rounded-xl transition-colors",
+                  @current_conversation && @current_conversation.id == conversation.id && "bg-blue-50 border border-blue-200",
+                  !(@current_conversation && @current_conversation.id == conversation.id) && "hover:bg-gray-50 border border-transparent"
+                ]}
+              >
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-medium text-gray-900 truncate flex-1">
+                    <%= conversation.title || "New conversation" %>
+                  </span>
+                  <span class="text-xs text-gray-400 ml-2">
+                    <%= Calendar.strftime(conversation.updated_at, "%b %d") %>
+                  </span>
+                </div>
+                <%= if Enum.any?(conversation.messages) do %>
+                  <p class="text-xs text-gray-500 mt-1 truncate">
+                    <%= List.last(conversation.messages).content |> String.slice(0, 50) %>...
+                  </p>
+                <% end %>
+              </button>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>
+</div>
+
+<%!-- Main Content (when panel is closed) --%>
+<%= unless @panel_open do %>
+  <div class="flex items-center justify-center min-h-[calc(100vh-200px)]">
+    <%= if Enum.empty?(@connected_crms) do %>
+      <%!-- No CRM Connected Message --%>
+      <div class="text-center max-w-md">
+        <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+          <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+        </div>
+        <h2 class="text-xl font-semibold text-gray-900 mb-2">No CRM Connected</h2>
+        <p class="text-gray-500 mb-6">Connect HubSpot or Salesforce to start asking questions about your contacts and meetings.</p>
+        <a
+          href={~p"/dashboard/settings"}
+          class="inline-flex items-center gap-2 px-6 py-3 bg-[#3270E8] text-white rounded-xl shadow-lg hover:bg-[#2860D0] transition-colors font-medium"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Connect a CRM
+        </a>
+      </div>
+    <% else %>
+      <%!-- Ask Anything Button --%>
+      <button
+        type="button"
+        phx-click="toggle_panel"
+        class="flex items-center gap-2 px-6 py-3 bg-[#3270E8] text-white rounded-xl shadow-lg hover:bg-[#2860D0] transition-colors font-medium"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+        Ask Anything
+      </button>
+    <% end %>
+  </div>
+<% end %>

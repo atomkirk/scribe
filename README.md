@@ -6,6 +6,34 @@ Social Scribe is a powerful Elixir and Phoenix LiveView application designed to 
 
 ---
 
+## 🚀 Quick Start
+
+```bash
+docker-compose up -d              # Start Postgres (port 5432)
+cp .env.example .env              # Copy env template, fill in your API keys
+mix setup                         # Install deps, create DB, run migrations
+source .env && mix phx.server     # Run server
+```
+
+Visit [localhost:4000](http://localhost:4000)
+
+For detailed setup instructions, see [docs/setup.md](docs/setup.md).
+
+---
+
+## 📖 Configuration Docs
+
+Each service has setup gotchas. These docs save you hours of debugging.
+
+| Service | Guide |
+|---------|-------|
+| Google OAuth + Calendar | [docs/google.md](docs/google.md) |
+| Recall.ai | [docs/recall.md](docs/recall.md) |
+| HubSpot | [docs/hubspot.md](docs/hubspot.md) |
+| Salesforce | [docs/salesforce.md](docs/salesforce.md) |
+
+---
+
 ## 🌟 Key Features Implemented
 
 * **Google Calendar Integration:**
@@ -81,68 +109,6 @@ Social Scribe is a powerful Elixir and Phoenix LiveView application designed to 
 
 ---
 
-## 🚀 Getting Started
-
-Follow these steps to get SocialScribe running on your local machine.
-
-### Prerequisites
-
-* Elixir
-* Erlang/OTP 
-* PostgreSQL
-* Node.js (for Tailwind CSS asset compilation)
-
-### Setup Instructions
-
-1.  **Clone the Repository:**
-    ```bash
-    git clone https://github.com/fparadas/social_scribe.git 
-    cd social_scribe
-    ```
-
-2.  **Install Dependencies & Setup Database:**
-    The `mix setup` command bundles common setup tasks.
-    ```bash
-    mix setup
-    ```
-    This will typically:
-    * Install Elixir dependencies (`mix deps.get`)
-    * Create your database if it doesn't exist (`mix ecto.create`)
-    * Run database migrations (`mix ecto.migrate`)
-    * Install Node.js dependencies for assets (`cd assets && npm install && cd ..`)
-
-3.  **Configure Environment Variables:**
-    You'll need to set up several API keys and OAuth credentials.
-    * Copy the example environment file (if one is provided, e.g., `.env.example`) to `.env`.
-    * Edit the `.env` file (or set environment variables directly) with your actual credentials:
-        * `GOOGLE_CLIENT_ID`: Your Google OAuth Client ID.
-        * `GOOGLE_CLIENT_SECRET`: Your Google OAuth Client Secret.
-        * `GOOGLE_REDIRECT_URI`: `"http://localhost:4000/auth/google/callback"`
-        * `RECALL_API_KEY`: Your Recall.ai API Key (as provided for the challenge).
-        * `GEMINI_API_KEY`: Your Google Gemini API Key.
-        * `LINKEDIN_CLIENT_ID`: Your LinkedIn App Client ID.
-        * `LINKEDIN_CLIENT_SECRET`: Your LinkedIn App Client Secret.
-        * `LINKEDIN_REDIRECT_URI`: `"http://localhost:4000/auth/linkedin/callback"`
-        * `FACEBOOK_APP_ID`: Your Facebook App ID.
-        * `FACEBOOK_APP_SECRET`: Your Facebook App Secret.
-        * `FACEBOOK_REDIRECT_URI`: `"http://localhost:4000/auth/facebook/callback"`
-        * `HUBSPOT_CLIENT_ID`: Your HubSpot App Client ID.
-        * `HUBSPOT_CLIENT_SECRET`: Your HubSpot App Client Secret.
-        * `HUBSPOT_REDIRECT_URI`: `"http://localhost:4000/auth/hubspot/callback"`
-
-4.  **Start the Phoenix Server:**
-    ```bash
-    mix phx.server
-    ```
-    Or, to run inside IEx (Interactive Elixir):
-    ```bash
-    iex -S mix phx.server
-    ```
-
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
-
----
-
 ## ⚙️ Functionality Deep Dive
 
 * **Connect & Sync:** Users log in with Google. The "Settings" page allows connecting multiple Google accounts, plus LinkedIn and Facebook accounts. For Facebook, after initial connection, users are guided to select a Page for posting. Calendars are synced to a database to populate the dashboard with upcoming events.
@@ -174,7 +140,7 @@ Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 
 * **LiveView Component:** Located at `lib/social_scribe_web/live/meeting_live/hubspot_modal_component.ex`
 * **Contact Search:** Debounced input triggers HubSpot API search, results displayed in dropdown
-* **AI Suggestions:** Fetched via `HubspotSuggestions.generate_suggestions` which calls Gemini with transcript context
+* **AI Suggestions:** Fetched via `CrmSuggestions.generate_suggestions` which calls Gemini with transcript context
 * **Suggestion Cards:** Each card displays:
     * Field label
     * Current value (strikethrough)

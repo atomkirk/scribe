@@ -114,7 +114,7 @@ defmodule SocialScribeWeb.HubspotModalMoxTest do
 
       # Also need to mock the AI content generator for suggestions
       SocialScribe.AIContentGeneratorMock
-      |> expect(:generate_hubspot_suggestions, fn _meeting ->
+      |> expect(:generate_crm_suggestions, fn _meeting, "hubspot" ->
         {:ok, mock_suggestions}
       end)
 
@@ -233,6 +233,48 @@ defmodule SocialScribeWeb.HubspotModalMoxTest do
 
       assert {:ok, _} =
                SocialScribe.HubspotApiBehaviour.apply_updates(credential, "123", updates_list)
+    end
+
+    test "get_contact_notes delegates to implementation", %{credential: credential} do
+      expected = [%{id: "note1", body: "Test note", created_at: nil}]
+
+      SocialScribe.HubspotApiMock
+      |> expect(:get_contact_notes, fn _cred, contact_id ->
+        assert contact_id == "123"
+        {:ok, expected}
+      end)
+
+      assert {:ok, ^expected} = SocialScribe.HubspotApiBehaviour.get_contact_notes(credential, "123")
+    end
+
+    test "get_contact_tasks delegates to implementation", %{credential: credential} do
+      expected = [%{id: "task1", subject: "Follow up", status: "Open"}]
+
+      SocialScribe.HubspotApiMock
+      |> expect(:get_contact_tasks, fn _cred, contact_id ->
+        assert contact_id == "123"
+        {:ok, expected}
+      end)
+
+      assert {:ok, ^expected} = SocialScribe.HubspotApiBehaviour.get_contact_tasks(credential, "123")
+    end
+
+    test "get_contact_with_context delegates to implementation", %{credential: credential} do
+      expected = %{
+        id: "123",
+        firstname: "John",
+        lastname: "Doe",
+        notes: [%{id: "note1", body: "Test note"}],
+        tasks: [%{id: "task1", subject: "Follow up"}]
+      }
+
+      SocialScribe.HubspotApiMock
+      |> expect(:get_contact_with_context, fn _cred, contact_id ->
+        assert contact_id == "123"
+        {:ok, expected}
+      end)
+
+      assert {:ok, ^expected} = SocialScribe.HubspotApiBehaviour.get_contact_with_context(credential, "123")
     end
   end
 

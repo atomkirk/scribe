@@ -1,6 +1,8 @@
-let Hooks = {}
-
-Hooks.Clipboard = {
+/**
+ * Clipboard hook - General purpose clipboard functionality
+ * Used by ClipboardButton component across the app
+ */
+const Clipboard = {
     mounted() {
         this.handleEvent("copy-to-clipboard", ({ text: text }) => {
             navigator.clipboard.writeText(text).then(() => {
@@ -13,4 +15,4 @@ Hooks.Clipboard = {
     }
 }
 
-export default Hooks
+export default Clipboard
